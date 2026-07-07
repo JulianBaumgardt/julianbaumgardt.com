@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="julianbaumgardt.com">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>julianbaumgardt.com</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #000;
+        color: #fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      section {
+        min-height: 100svh;
+        padding: 32px;
+      }
+
+      .hero {
+        display: grid;
+        place-items: center;
+        text-align: center;
+        position: relative;
+        padding-bottom: 128px;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        font-size: clamp(2rem, 7vw, 6rem);
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .title-link {
+        color: #fff;
+        text-decoration: none;
+      }
+
+      .title-link:hover,
+      .title-link:focus-visible {
+        color: #999;
+        outline: none;
+      }
+
+      .sites {
+        display: grid;
+        align-content: start;
+        justify-items: center;
+        gap: clamp(56px, 10svh, 96px);
+        padding-top: clamp(180px, 34svh, 360px);
+        padding-bottom: clamp(180px, 34svh, 360px);
+      }
+
+      ul {
+        width: min(100%, 720px);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .sites > ul {
+        --toggle-column: 48px;
+        --tree-gap: 16px;
+        --project-indent: clamp(48px, 7vw, 96px);
+        --file-indent: clamp(72px, 10vw, 144px);
+      }
+
+      li + li {
+        border-top: 0;
+      }
+
+      a {
+        color: #fff;
+        text-decoration: none;
+      }
+
+      ul a,
+      .tree-toggle {
+        display: block;
+        width: 100%;
+        padding: 24px 0;
+        border: 0;
+        background: none;
+        color: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-size: clamp(1.25rem, 4vw, 3.5rem);
+        line-height: 1;
+        text-align: left;
+      }
+
+      ul a:hover,
+      ul a:focus-visible,
+      .tree-toggle:hover,
+      .tree-toggle:focus-visible {
+        color: #999;
+        outline: none;
+      }
+
+      .tree-toggle {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) var(--toggle-column);
+        align-items: center;
+        gap: var(--tree-gap);
+      }
+
+      .tree-toggle::after {
+        content: "+";
+        display: grid;
+        place-items: center;
+        width: var(--toggle-column);
+        color: #777;
+        font-size: 0.55em;
+      }
+
+      .tree-toggle[aria-expanded="true"]::after {
+        content: "-";
+      }
+
+      .tree-reveal {
+        display: grid;
+        grid-template-rows: 0fr;
+        opacity: 0;
+        overflow: hidden;
+        transform: translateY(-10px);
+        transition:
+          grid-template-rows 420ms cubic-bezier(0.16, 1, 0.3, 1),
+          opacity 260ms ease,
+          transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .tree-reveal > ul {
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .tree-reveal.is-open {
+        grid-template-rows: 1fr;
+        opacity: 1;
+        overflow: visible;
+        transform: translateY(0);
+      }
+
+      .tree-reveal.is-open > ul {
+        overflow: visible;
+      }
+
+      .project-links,
+      .file-links {
+        width: 100%;
+      }
+
+      .project-links {
+        margin: -4px 0 0;
+        padding: 0;
+      }
+
+      .file-links {
+        margin: 0;
+        padding: 0;
+      }
+
+      .project-links li + li,
+      .file-links li + li {
+        border-top: 0;
+      }
+
+      .project-links a,
+      .project-links .tree-toggle {
+        padding: 22px 0;
+        color: #bbb;
+        font-size: clamp(1.05rem, 2.4vw, 1.85rem);
+        line-height: 1.15;
+      }
+
+      .project-entry {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) var(--toggle-column);
+        align-items: center;
+        gap: var(--tree-gap);
+      }
+
+      .project-entry a {
+        min-width: 0;
+        padding-right: 0;
+      }
+
+      .project-entry .tree-toggle {
+        display: grid;
+        grid-template-columns: var(--toggle-column);
+        place-items: center;
+        width: var(--toggle-column);
+        min-height: var(--toggle-column);
+        padding: 0;
+        color: #777;
+        font-size: clamp(1.05rem, 2.4vw, 1.85rem);
+        text-align: center;
+      }
+
+      .project-entry .tree-toggle::after {
+        width: var(--toggle-column);
+        font-size: 1em;
+      }
+
+      .file-links a {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) var(--toggle-column);
+        align-items: center;
+        gap: var(--tree-gap);
+        min-height: 64px;
+        padding: 18px 0;
+        color: #a8a8a8;
+        font-size: clamp(0.95rem, 2vw, 1.25rem);
+        line-height: 1.35;
+      }
+
+      .file-links span {
+        display: grid;
+        place-items: center;
+        width: var(--toggle-column);
+        color: #666;
+        font-size: 1em;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+
+      .about-link a {
+        color: #d6d6d6;
+      }
+
+      .tree-reveal li {
+        opacity: 0;
+        transform: translateY(-6px);
+        transition:
+          opacity 180ms ease,
+          transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .tree-reveal.is-open > ul > li {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .tree-reveal.is-open > ul > li:nth-child(1) {
+        transition-delay: 35ms;
+      }
+
+      .tree-reveal.is-open > ul > li:nth-child(2) {
+        transition-delay: 65ms;
+      }
+
+      .tree-reveal.is-open > ul > li:nth-child(3) {
+        transition-delay: 95ms;
+      }
+
+      .tree-reveal.is-open > ul > li:nth-child(4) {
+        transition-delay: 125ms;
+      }
+
+      .tree-reveal.is-open > ul > li:nth-child(5) {
+        transition-delay: 155ms;
+      }
+
+      .scroll-arrow {
+        position: absolute;
+        left: 50%;
+        top: 90%;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 0;
+        border-right: 2px solid #fff;
+        border-bottom: 2px solid #fff;
+        background: none;
+        color: inherit;
+        cursor: pointer;
+        transform: translateX(-50%) rotate(45deg);
+        animation: arrow-bounce 1.6s ease-in-out infinite;
+      }
+
+      .scroll-arrow:hover,
+      .scroll-arrow:focus-visible {
+        border-color: #999;
+        outline: none;
+      }
+
+      .scroll-arrow:focus-visible {
+        box-shadow: 7px 7px 0 -5px #999;
+      }
+
+      @keyframes arrow-bounce {
+        0%,
+        100% {
+          transform: translate(-50%, 0) rotate(45deg);
+        }
+
+        50% {
+          transform: translate(-50%, 10px) rotate(45deg);
+        }
+      }
+
+      @media (max-height: 520px) {
+        .hero {
+          align-content: center;
+          padding-bottom: 88px;
+        }
+
+        .scroll-arrow {
+          top: 90%;
+          width: 14px;
+          height: 14px;
+        }
+      }
+
+      @media (max-width: 560px) {
+        section {
+          padding: 24px;
+        }
+
+        .sites {
+          gap: 44px;
+          padding-top: clamp(140px, 30svh, 260px);
+          padding-bottom: clamp(140px, 30svh, 260px);
+        }
+
+        .sites > ul {
+          --toggle-column: 44px;
+          --tree-gap: 12px;
+          --project-indent: 22px;
+          --file-indent: 44px;
+        }
+
+        .project-links a,
+        .project-links .tree-toggle {
+          padding: 20px 0;
+        }
+
+        .tree-toggle {
+          grid-template-columns: minmax(0, 1fr) var(--toggle-column);
+        }
+
+        .tree-toggle::after {
+          width: var(--toggle-column);
+        }
+
+        .project-entry {
+          grid-template-columns: minmax(0, 1fr) var(--toggle-column);
+          gap: var(--tree-gap);
+        }
+
+        .project-entry .tree-toggle {
+          grid-template-columns: var(--toggle-column);
+          width: var(--toggle-column);
+          min-height: var(--toggle-column);
+          padding: 0;
+        }
+
+        .project-entry .tree-toggle::after {
+          width: var(--toggle-column);
+        }
+
+        .file-links a {
+          grid-template-columns: 1fr;
+          gap: 7px;
+          min-height: 64px;
+          padding: 18px 0;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .tree-reveal,
+        .tree-reveal li,
+        .scroll-arrow {
+          animation: none;
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="hero">
+      <a class="title-link" href="#projects">
+        <h1>Julian Baumgardt</h1>
+      </a>
+      <button class="scroll-arrow" type="button" aria-label="Scroll to projects"></button>
+    </section>
+    <section class="sites" id="projects" aria-label="Links">
+      <ul>
+        <li>
+          <button class="tree-toggle" type="button" aria-expanded="false" aria-controls="project-links">
+            projects
+          </button>
+          <div class="tree-reveal" id="project-links" aria-hidden="true" inert>
+            <ul class="project-links" aria-label="Projects">
+              <li>
+                <div class="project-entry">
+                  <a href="cpu-benchmark.html">cpu benchmark</a>
+                  <button class="tree-toggle" type="button" aria-label="Show CPU benchmark details" aria-expanded="false" aria-controls="cpu-benchmark-files"></button>
+                </div>
+                <div class="tree-reveal" id="cpu-benchmark-files" aria-hidden="true" inert>
+                  <ul class="file-links" aria-label="CPU benchmark files">
+                    <li><a href="code-viewer.html?file=cpu-benchmark.html">cpu-benchmark.html <span>+</span></a></li>
+                    <li><a href="code-viewer.html?file=cpu-benchmark.js">cpu-benchmark.js <span>+</span></a></li>
+                    <li><a href="code-viewer.html?file=cpu-worker.js">cpu-worker.js <span>+</span></a></li>
+                    <li><a href="code-viewer.html?file=cpu-benchmark-test.js">cpu-benchmark-test.js <span>+</span></a></li>
+                    <li class="about-link"><a href="about-cpu-benchmark.html">about this project <span>+</span></a></li>
+                  </ul>
+                </div>
+              </li>
+              <li>
+                <div class="project-entry">
+                  <a href="w11-optimiser.zip" download>w11 optimiser</a>
+                  <button class="tree-toggle" type="button" aria-label="Show W11 optimiser details" aria-expanded="false" aria-controls="w11-optimiser-files"></button>
+                </div>
+                <div class="tree-reveal" id="w11-optimiser-files" aria-hidden="true" inert>
+                  <ul class="file-links" aria-label="W11 optimiser files">
+                    <li><a href="code-viewer.html?file=w11-optimiser/w11-optimiser.ps1">w11-optimiser.ps1 <span>+</span></a></li>
+                    <li><a href="code-viewer.html?file=w11-optimiser/w11-optimiser-launcher.cmd">w11-optimiser-launcher.cmd <span>+</span></a></li>
+                    <li><a href="code-viewer.html?file=w11-optimiser/w11-optimiser-readme.md">w11-optimiser-readme.md <span>+</span></a></li>
+                    <li class="about-link"><a href="about-w11-optimiser.html">about this project <span>+</span></a></li>
+                  </ul>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </li>
+        <li><a href="#">writing</a></li>
+        <li><a href="mailto:hello@julianbaumgardt.com">contact</a></li>
+      </ul>
+    </section>
+    <script>
+      const toggles = document.querySelectorAll(".tree-toggle");
+      const scrollArrow = document.querySelector(".scroll-arrow");
+      const sites = document.getElementById("projects");
+
+      function prefersReducedMotion() {
+        return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      }
+
+      function setToggleState(toggle, open) {
+        const reveal = document.getElementById(toggle.getAttribute("aria-controls"));
+        toggle.setAttribute("aria-expanded", String(open));
+        reveal.setAttribute("aria-hidden", String(!open));
+        reveal.toggleAttribute("inert", !open);
+        reveal.classList.toggle("is-open", open);
+      }
+
+      function activateToggle(toggle) {
+        const isOpen = toggle.getAttribute("aria-expanded") === "true";
+        setToggleState(toggle, !isOpen);
+      }
+
+      function visibleMenuItems() {
+        return Array.from(document.querySelectorAll(".sites a, .sites button.tree-toggle"))
+          .filter((item) => !item.closest("[inert]"));
+      }
+
+      function focusRelativeItem(direction) {
+        const items = visibleMenuItems();
+        const index = items.indexOf(document.activeElement);
+        const nextIndex = index === -1
+          ? 0
+          : (index + direction + items.length) % items.length;
+        items[nextIndex].focus();
+      }
+
+      scrollArrow.addEventListener("click", () => {
+        sites.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+      });
+
+      for (const toggle of toggles) {
+        toggle.addEventListener("click", () => {
+          activateToggle(toggle);
+        });
+      }
+
+      sites.addEventListener("keydown", (event) => {
+        const active = document.activeElement;
+        const isToggle = active && active.classList.contains("tree-toggle");
+
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          focusRelativeItem(1);
+          return;
+        }
+
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          focusRelativeItem(-1);
+          return;
+        }
+
+        if (event.key === "ArrowRight" && isToggle) {
+          event.preventDefault();
+          setToggleState(active, true);
+          return;
+        }
+
+        if (event.key === "ArrowLeft" && isToggle) {
+          event.preventDefault();
+          setToggleState(active, false);
+          return;
+        }
+
+        if (event.key === "Enter" && active && active.matches("a, button")) {
+          event.preventDefault();
+          active.click();
+        }
+      });
+    </script>
+  </body>
+</html>

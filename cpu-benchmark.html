@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <title>CPU Benchmark</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000;
+      --text: #f4f4f4;
+      --muted: #8a8a8a;
+      --line: #242424;
+      --panel: #080808;
+      --panel-strong: #101010;
+      --accent: #ffffff;
+      --danger: #ff5f57;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      padding: clamp(22px, 5vw, 56px);
+    }
+
+    main {
+      width: min(1180px, 100%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: clamp(42px, 8vw, 92px);
+    }
+
+    .back-link {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status {
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(270px, 336px);
+      align-items: center;
+      gap: clamp(28px, 5vw, 70px);
+      padding-bottom: 34px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0;
+      white-space: nowrap;
+      font-size: clamp(48px, 8.1vw, 96px);
+      font-weight: 760;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .controls {
+      width: min(300px, 100%);
+      display: grid;
+      gap: 12px;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr 112px;
+      align-items: center;
+      gap: 12px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+    }
+
+    input,
+    select {
+      padding: 0 12px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+
+    button.stop {
+      color: var(--danger);
+    }
+
+    button:disabled,
+    input:disabled,
+    select:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .progress {
+      height: 2px;
+      margin: 28px 0 34px;
+      background: var(--line);
+      overflow: hidden;
+    }
+
+    .progress span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: var(--text);
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform 0.25s ease;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .score {
+      min-height: 140px;
+      padding: 20px;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .score:last-child {
+      border-right: 0;
+    }
+
+    .score strong {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .score span,
+    .score small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .score small {
+      display: block;
+      min-height: 18px;
+      line-height: 1.35;
+    }
+
+    .details {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 52px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric:nth-child(odd) {
+      border-right: 1px solid var(--line);
+    }
+
+    .metric:nth-last-child(-n + 2) {
+      border-bottom: 0;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric strong {
+      text-align: right;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .run-details {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .run-details summary {
+      min-height: 54px;
+      padding: 17px 18px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      list-style-position: inside;
+      user-select: none;
+    }
+
+    .run-details[open] summary {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .details-content {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .details-block {
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      min-width: 0;
+    }
+
+    .details-block:nth-child(even) {
+      border-right: 0;
+    }
+
+    .details-block.wide {
+      grid-column: 1 / -1;
+      border-right: 0;
+    }
+
+    .details-block h2 {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .details-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+    }
+
+    .details-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .details-row strong,
+    .round-table {
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+      text-align: right;
+    }
+
+    .round-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .round-table th,
+    .round-table td {
+      padding: 7px 0;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    .round-table th {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .round-table td:last-child,
+    .round-table th:last-child {
+      text-align: right;
+    }
+
+    .details-empty {
+      grid-column: 1 / -1;
+      padding: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        padding: 22px;
+      }
+
+      .topbar,
+      .hero {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        align-items: start;
+      }
+
+      h1 {
+        font-size: clamp(40px, 13vw, 72px);
+      }
+
+      .status {
+        text-align: left;
+      }
+
+      .controls {
+        width: 100%;
+      }
+
+      .score-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .score-grid,
+      .details,
+      .details-content {
+        grid-template-columns: 1fr;
+      }
+
+      .score {
+        min-height: 118px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .score:last-child,
+      .metric:last-child {
+        border-bottom: 0;
+      }
+
+      .metric,
+      .metric:nth-child(odd) {
+        border-right: 0;
+      }
+
+      .metric:nth-last-child(2) {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .details-block,
+      .details-block:nth-child(even) {
+        border-right: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="topbar" aria-label="Page">
+      <a class="back-link" href="index.html#projects">Back To Projects</a>
+      <div class="status" id="status" aria-live="polite">Loading</div>
+    </nav>
+
+    <section class="hero" aria-labelledby="page-title">
+      <h1 id="page-title">CPU Benchmark</h1>
+      <div class="controls" aria-label="Benchmark controls">
+        <div class="control-row">
+          <label for="worker-count">Workers</label>
+          <input id="worker-count" type="number" min="1" max="32" step="1" inputmode="numeric" title="Worker count is clamped between 1 and 32.">
+        </div>
+        <div class="control-row">
+          <label for="workload-select">Workload</label>
+          <select id="workload-select">
+            <option value="quick">Quick</option>
+            <option value="standard" selected>Standard</option>
+            <option value="heavy">Heavy</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="primary" id="run-benchmark" type="button">Run</button>
+          <button class="stop" id="stop-benchmark" type="button" disabled>Stop</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="progress" aria-hidden="true">
+      <span id="progress-bar"></span>
+    </div>
+
+    <section class="score-grid" aria-label="Benchmark scores">
+      <div class="score">
+        <span>Single-Core</span>
+        <strong id="single-score">--</strong>
+        <small id="single-noise"></small>
+      </div>
+      <div class="score">
+        <span>Multi-Core</span>
+        <strong id="multi-score">--</strong>
+        <small id="multi-noise"></small>
+      </div>
+      <div class="score">
+        <span>Scaling</span>
+        <strong id="scale-score">--</strong>
+        <small id="scale-noise"></small>
+      </div>
+      <div class="score">
+        <span>Fixed Speedup</span>
+        <strong id="fixed-speedup-score">--</strong>
+        <small id="fixed-noise"></small>
+      </div>
+    </section>
+
+    <section class="details" aria-label="Benchmark details">
+      <div class="metric">
+        <span>Single Compute</span>
+        <strong id="single-time">--</strong>
+      </div>
+      <div class="metric">
+        <span>Multi Compute</span>
+        <strong id="multi-wall">--</strong>
+      </div>
+      <div class="metric">
+        <span>Fixed Compute</span>
+        <strong id="fixed-wall">--</strong>
+      </div>
+      <div class="metric">
+        <span>Workers Used</span>
+        <strong id="workers-used">--</strong>
+      </div>
+      <div class="metric">
+        <span>Worker Cap</span>
+        <strong id="worker-cap">--</strong>
+      </div>
+      <div class="metric">
+        <span>Workload</span>
+        <strong id="workload-used">--</strong>
+      </div>
+      <div class="metric">
+        <span>Start Mode</span>
+        <strong id="start-mode">--</strong>
+      </div>
+      <div class="metric">
+        <span>Visibility</span>
+        <strong id="visibility-state">--</strong>
+      </div>
+      <div class="metric">
+        <span>Verification</span>
+        <strong id="verification-checksum">--</strong>
+      </div>
+      <div class="metric">
+        <span>Worker Source</span>
+        <strong id="worker-source">--</strong>
+      </div>
+    </section>
+
+    <details class="run-details" id="run-details">
+      <summary>Run Details</summary>
+      <div class="details-content" id="details-content">
+        <div class="details-empty">No completed run yet.</div>
+      </div>
+    </details>
+  </main>
+
+  <script id="cpu-worker-source" type="text/plain">
+(function() {
+  "use strict";
+
+  let runBenchmark = null;
+
+  function encodeU32(value) {
+    const bytes = [];
+    let n = value >>> 0;
+    do {
+      let byte = n & 0x7f;
+      n >>>= 7;
+      if (n !== 0) byte |= 0x80;
+      bytes.push(byte);
+    } while (n !== 0);
+    return bytes;
+  }
+
+  function encodeI32(value) {
+    const bytes = [];
+    let n = value | 0;
+    let more = true;
+    while (more) {
+      let byte = n & 0x7f;
+      n >>= 7;
+      const signBit = byte & 0x40;
+      if ((n === 0 && signBit === 0) || (n === -1 && signBit !== 0)) {
+        more = false;
+      } else {
+        byte |= 0x80;
+      }
+      bytes.push(byte);
+    }
+    return bytes;
+  }
+
+  function ascii(value) {
+    return Array.from(value, (char) => char.charCodeAt(0));
+  }
+
+  function section(id, data) {
+    return [id, ...encodeU32(data.length), ...data];
+  }
+
+  function opConst(value) {
+    return [0x41, ...encodeI32(value)];
+  }
+
+  function buildKernelBytes() {
+    const typeSection = [
+      0x01,
+      0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f
+    ];
+
+    const functionSection = [0x01, 0x00];
+    const exportName = ascii("run_benchmark");
+    const exportSection = [
+      0x01,
+      exportName.length, ...exportName,
+      0x00, 0x00
+    ];
+
+    const instructions = [
+      0x20, 0x01, ...opConst(0x9e3779b9), 0x73, 0x21, 0x02,
+      0x20, 0x01, ...opConst(0x85ebca6b), 0x73, 0x21, 0x03,
+      0x20, 0x01, ...opConst(0xc2b2ae35), 0x73, 0x21, 0x04,
+      0x20, 0x01, ...opConst(0x27d4eb2f), 0x73, 0x21, 0x05,
+      ...opConst(0), 0x21, 0x06,
+
+      0x02, 0x40,
+      0x03, 0x40,
+      0x20, 0x06, 0x20, 0x00, 0x4f, 0x0d, 0x01,
+
+      0x20, 0x02,
+      ...opConst(1664525),
+      0x6c,
+      0x20, 0x06,
+      0x6a,
+      ...opConst(1013904223),
+      0x6a,
+      ...opConst(13),
+      0x77,
+      0x21, 0x02,
+
+      0x20, 0x03,
+      0x20, 0x02,
+      0x20, 0x05,
+      0x6a,
+      0x73,
+      ...opConst(17),
+      0x77,
+      0x20, 0x06,
+      0x6a,
+      0x21, 0x03,
+
+      0x20, 0x04,
+      0x20, 0x03,
+      0x20, 0x06,
+      0x73,
+      0x6a,
+      ...opConst(0x85ebca6b),
+      0x6c,
+      0x21, 0x04,
+
+      0x20, 0x05,
+      0x20, 0x04,
+      0x20, 0x02,
+      ...opConst(31),
+      0x71,
+      0x77,
+      0x73,
+      0x21, 0x05,
+
+      0x20, 0x06,
+      ...opConst(1),
+      0x6a,
+      0x21, 0x06,
+      0x0c, 0x00,
+      0x0b,
+      0x0b,
+
+      0x20, 0x02,
+      0x20, 0x03,
+      0x73,
+      0x20, 0x04,
+      0x73,
+      0x20, 0x05,
+      0x73,
+      0x0b
+    ];
+
+    const functionBody = [
+      0x01, 0x05, 0x7f,
+      ...instructions
+    ];
+
+    const codeSection = [
+      0x01,
+      ...encodeU32(functionBody.length),
+      ...functionBody
+    ];
+
+    return new Uint8Array([
+      0x00, 0x61, 0x73, 0x6d,
+      0x01, 0x00, 0x00, 0x00,
+      ...section(1, typeSection),
+      ...section(3, functionSection),
+      ...section(7, exportSection),
+      ...section(10, codeSection)
+    ]);
+  }
+
+  async function initKernel() {
+    const module = await WebAssembly.compile(buildKernelBytes());
+    const instance = await WebAssembly.instantiate(module, {});
+    runBenchmark = instance.exports.run_benchmark;
+
+    let check = 0;
+    for (let i = 0; i < 4; i += 1) {
+      check ^= runBenchmark(250000, 0x12345678 + i);
+    }
+    return check >>> 0;
+  }
+
+  function waitForBarrier(buffer) {
+    if (!buffer) return;
+    const barrier = new Int32Array(buffer);
+    Atomics.add(barrier, 0, 1);
+    Atomics.wait(barrier, 1, 0);
+  }
+
+  function runJob(message) {
+    if (!runBenchmark) {
+      throw new Error("Benchmark kernel was not initialized.");
+    }
+
+    waitForBarrier(message.barrier || null);
+
+    const startedAt = performance.now();
+    const checksum = runBenchmark(message.iterations >>> 0, message.seed >>> 0);
+    const durationMs = performance.now() - startedAt;
+
+    self.postMessage({
+      type: "result",
+      jobId: message.jobId,
+      workerIndex: message.workerIndex,
+      durationMs,
+      checksum: checksum >>> 0
+    });
+  }
+
+  self.onmessage = async (event) => {
+    const message = event.data || {};
+
+    try {
+      if (message.type === "init") {
+        const warmupChecksum = await initKernel();
+        self.postMessage({
+          type: "ready",
+          workerIndex: message.workerIndex,
+          warmupChecksum,
+          hasSharedArrayBuffer: typeof SharedArrayBuffer !== "undefined"
+        });
+        return;
+      }
+
+      if (message.type === "run") {
+        runJob(message);
+      }
+    } catch (error) {
+      self.postMessage({
+        type: "error",
+        jobId: message.jobId || null,
+        workerIndex: message.workerIndex,
+        message: error && error.message ? error.message : String(error)
+      });
+    }
+  };
+})();
+  </script>
+  <script src="cpu-benchmark.js?v=10" defer></script>
+</body>
+</html>

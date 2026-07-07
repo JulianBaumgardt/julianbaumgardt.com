@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="W11 Optimiser project notes">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>W11 Optimiser / julianbaumgardt.com</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: #000;
+        color: #f4f4f4;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      main {
+        width: min(980px, 100%);
+        margin: 0 auto;
+        padding: clamp(22px, 5vw, 56px);
+      }
+
+      nav {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: clamp(44px, 8vw, 90px);
+      }
+
+      a {
+        color: #aaa;
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:focus-visible {
+        color: #fff;
+        outline: none;
+      }
+
+      h1 {
+        margin: 0 0 22px;
+        overflow-wrap: anywhere;
+        font-size: clamp(2.1rem, 7vw, 5.8rem);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .summary {
+        max-width: 760px;
+        margin: 0 0 clamp(42px, 8vw, 78px);
+        color: #aaa;
+        font-size: clamp(1rem, 2.4vw, 1.35rem);
+        line-height: 1.65;
+      }
+
+      section {
+        padding: 28px 0;
+        border-top: 1px solid #222;
+      }
+
+      h2 {
+        margin: 0 0 20px;
+        color: #888;
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+
+      ul {
+        display: grid;
+        gap: 18px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      li {
+        color: #ddd;
+        line-height: 1.55;
+      }
+
+      li strong {
+        color: #fff;
+        font-weight: 500;
+      }
+
+      code {
+        padding: 0.05em 0.4em;
+        border: 1px solid #242424;
+        border-radius: 4px;
+        background: #0c0c0c;
+        color: #fff;
+        font-size: 0.92em;
+      }
+
+      .file-list {
+        display: grid;
+        border: 1px solid #222;
+        background: #050505;
+      }
+
+      .file-row {
+        display: grid;
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+        gap: 18px;
+        padding: 18px;
+      }
+
+      .file-row + .file-row {
+        border-top: 1px solid #1c1c1c;
+      }
+
+      .file-row span {
+        color: #fff;
+        overflow-wrap: anywhere;
+      }
+
+      .file-row strong {
+        color: #999;
+        font-weight: 400;
+        line-height: 1.5;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding-top: 34px;
+      }
+
+      .actions a {
+        display: inline-grid;
+        place-items: center;
+        min-height: 44px;
+        padding: 0 16px;
+        border: 1px solid #242424;
+        border-radius: 6px;
+        color: #ddd;
+      }
+
+      .actions a:hover,
+      .actions a:focus-visible {
+        background: #101010;
+        text-decoration: none;
+      }
+
+      @media (max-width: 680px) {
+        nav,
+        .file-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Page">
+        <a href="index.html#projects">Back To Projects</a>
+        <a href="code-viewer.html?file=w11-optimiser/w11-optimiser.ps1">View source</a>
+      </nav>
+
+      <h1>W11 Optimiser</h1>
+      <p class="summary">A conservative Windows 11 tool: audits the PC, applies a small set of reversible changes, and reports everything in plain HTML. It fixes background overhead and power-management inconsistency &mdash; not raw FPS, and not much on a fresh install.</p>
+
+      <section>
+        <h2>What I Built</h2>
+        <ul>
+              <li>A PowerShell tool with six modes: <code>Audit</code>, <code>Preview</code>, <code>SafeOptimize</code>, <code>PostCheck</code>, <code>UndoLatest</code>, <code>OpenLastReport</code>.</li>
+              <li>A double-click CMD launcher &mdash; no PowerShell commands to type.</li>
+              <li>Local HTML reports for every run, saved under <code>Desktop\W11 Optimiser</code>.</li>
+              <li>Restore point, state save, and registry backup before anything changes.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>What Safe Optimise Changes</h2>
+        <ul>
+              <li><strong>Power plan.</strong> Ultimate Performance if available, else High Performance.</li>
+              <li><strong>AC power settings.</strong> Processor min 10% / max 100%, PCIe ASPM off, USB selective suspend off, wireless adapter power saving off.</li>
+              <li><strong>Game capture overhead.</strong> Game DVR off, Game Mode stays on.</li>
+              <li><strong>Visual responsiveness.</strong> A conservative effects profile, no shell surgery.</li>
+              <li><strong>Storage.</strong> TRIM enabled, ReTrim pass on supported NTFS/ReFS volumes.</li>
+              <li><strong>Network power.</strong> Stops active physical adapters powering down, where supported.</li>
+              <li><strong>Optional cleanup.</strong> Old temp/cache files from safe, rebuildable locations &mdash; skippable.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>What It Refuses To Touch</h2>
+        <ul>
+              <li><strong>No security downgrades.</strong> Defender, Firewall, Windows Update, Store, VBS, Memory Integrity &mdash; untouched.</li>
+              <li><strong>No driver or vendor hacks.</strong> GPUs are detected for reporting only, never modified.</li>
+              <li><strong>No unstable tweaks.</strong> No services, startup apps, HAGS, BIOS/UEFI, overclocking, undervolting, or code pulled from the internet.</li>
+              <li><strong>Manual stays manual.</strong> Startup apps, GPU panel settings, cooling modes, XMP/EXPO, Resizable BAR, BIOS updates are flagged for review, not changed.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Modes</h2>
+        <ul>
+              <li><strong>Audit.</strong> Full read of Windows version, CPU, RAM, GPU, storage, TRIM, power plan, Game DVR, Device Guard, startup, network power &mdash; into a report.</li>
+              <li><strong>Preview.</strong> Shows current values and what SafeOptimize would change. No changes made.</li>
+              <li><strong>SafeOptimize.</strong> Confirms, applies changes, backs up, reports, opens the result.</li>
+              <li><strong>PostCheck.</strong> Re-reads settings after a run to confirm what actually took effect.</li>
+              <li><strong>UndoLatest.</strong> Confirms, then restores registry, power scheme, TRIM, and network settings from the latest run.</li>
+              <li><strong>OpenLastReport.</strong> Opens the most recent report.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Safety Model</h2>
+        <ul>
+              <li><strong>Backup before edit.</strong> Registry and state are saved before anything changes.</li>
+              <li><strong>Preview changes nothing.</strong> No restore point, backup, or registry/power/adapter change.</li>
+              <li><strong>Confirmation required.</strong> Both the launcher and direct PowerShell path ask before SafeOptimize or UndoLatest runs.</li>
+              <li><strong>Restore point by default.</strong> Required unless explicitly skipped with <code>-SkipRestorePoint</code>.</li>
+              <li><strong>Local-only.</strong> Reports, state, backups &mdash; all local, nothing uploaded.</li>
+              <li><strong>Optional verbose logs</strong> via <code>-VerboseLog</code> for troubleshooting.</li>
+              <li><strong>Readable output.</strong> Browser reports, not buried console text.</li>
+              <li><strong>Conservative by design.</strong> Riskier tweaks stay documented, manual, and outside the tool's scope.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>What To Actually Expect</h2>
+        <ul>
+              <li><strong>Best on a machine that's been used for months</strong> &mdash; not fresh. TRIM and cache cleanup mostly no-op on a new install.</li>
+              <li><strong>Smoother frame timing, not higher FPS.</strong> The power/latency changes reduce stutter; they don't raise benchmark numbers.</li>
+              <li><strong>No FPS gain, ever.</strong> That's GPU driver and settings territory, deliberately untouched here.</li>
+              <li><strong>Visual-effects changes are close to cosmetic</strong> on modern hardware.</li>
+              <li>This is a small, correct set of fixes done safely &mdash; not a "50% faster" tool.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Why It Matters</h2>
+        <ul>
+              <li><strong>Honest scope, on purpose.</strong> Most optimisers chase speed by disabling protection or overpromising results. This one states its limits and keeps the system recoverable.</li>
+              <li><strong>Real Windows automation.</strong> PowerShell, CIM queries, registry backups, <code>powercfg</code>, storage maintenance, network adapter APIs, elevation handling.</li>
+              <li><strong>Reusable.</strong> Launcher, reports, undo flow, and conservative defaults work across different Windows 11 machines.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Files</h2>
+        <div class="file-list">
+
+            <div class="file-row">
+              <span>w11</span>
+              <strong>Website bootstrapper for <code>irm julianbaumgardt.com/w11 | iex</code>.</strong>
+            </div>
+            <div class="file-row">
+              <span>w11-optimiser.ps1</span>
+              <strong>Main PowerShell tool: audit, safe optimisation, post-check, HTML report generation, backups, and undo logic.</strong>
+            </div>
+            <div class="file-row">
+              <span>w11-optimiser-launcher.cmd</span>
+              <strong>Double-click launcher and command shortcut menu for audit, safe optimise, post-check, undo, and help.</strong>
+            </div>
+            <div class="file-row">
+              <span>w11-optimiser-readme.md</span>
+              <strong>Usage guide, safety boundaries, folder layout, generated outputs, and riskier-tweak notes.</strong>
+            </div>
+        </div>
+      </section>
+
+      <div class="actions">
+        <a href="w11-optimiser.zip" download>Download code</a>
+        <a href="code-viewer.html?file=w11">View w11 bootstrapper</a>
+        <a href="code-viewer.html?file=w11-optimiser/w11-optimiser.ps1">View w11-optimiser.ps1</a>
+        <a href="code-viewer.html?file=w11-optimiser/w11-optimiser-launcher.cmd">View w11-optimiser-launcher.cmd</a>
+        <a href="index.html#projects">Back To Projects</a>
+      </div>
+    </main>
+  </body>
+</html>

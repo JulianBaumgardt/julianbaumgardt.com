@@ -1,0 +1,118 @@
+$ErrorActionPreference = "Stop"
+
+$baseUrl = "https://julianbaumgardt.com"
+if (-not [string]::IsNullOrWhiteSpace($env:W11_OPTIMISER_BASE_URL)) {
+    $baseUrl = $env:W11_OPTIMISER_BASE_URL.TrimEnd("/")
+}
+
+$scriptUrl = "$baseUrl/w11-optimiser/w11-optimiser.ps1"
+$installRoot = Join-Path $env:TEMP "W11-Optimiser"
+$scriptPath = Join-Path $installRoot "w11-optimiser.ps1"
+
+function Write-Title {
+    Clear-Host
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host " W11 Optimiser" -ForegroundColor White
+    Write-Host " by Julian Baumgardt" -ForegroundColor DarkGray
+    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+function Download-W11Optimiser {
+    New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
+    Write-Host "Downloading latest W11 Optimiser..." -ForegroundColor Cyan
+    Invoke-WebRequest -UseBasicParsing -Uri $scriptUrl -OutFile $scriptPath
+    try {
+        Unblock-File -Path $scriptPath -ErrorAction Stop
+    }
+    catch {
+    }
+}
+
+function Invoke-W11Optimiser {
+    param(
+        [Parameter(Mandatory = $true)][string] $Mode,
+        [string[]] $ExtraArgs = @()
+    )
+
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Mode $Mode @ExtraArgs
+}
+
+Write-Title
+Write-Host "This command downloads the latest W11 Optimiser script from:" -ForegroundColor DarkGray
+Write-Host "  $scriptUrl" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "No optimisation starts until you choose an option." -ForegroundColor Yellow
+Write-Host ""
+
+try {
+    Download-W11Optimiser
+}
+catch {
+    Write-Host ""
+    Write-Host "Download failed. No changes were made." -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor DarkGray
+    return
+}
+
+while ($true) {
+    Write-Title
+    Write-Host "Recommended" -ForegroundColor White
+    Write-Host "  X  Apply safe optimisations (skip temp/cache cleanup)"
+    Write-Host ""
+    Write-Host "Reports" -ForegroundColor White
+    Write-Host "  1  Preview planned changes"
+    Write-Host "  2  Audit only"
+    Write-Host "  3  Post-check report"
+    Write-Host "  4  Open last report"
+    Write-Host ""
+    Write-Host "Maintenance" -ForegroundColor White
+    Write-Host "  5  Safe optimise (include old temp/cache cleanup)"
+    Write-Host "  6  Undo latest run"
+    Write-Host ""
+    Write-Host "Other" -ForegroundColor White
+    Write-Host "  0  Exit"
+    Write-Host ""
+
+    $choice = Read-Host "Choose an option"
+
+    switch -Regex ($choice) {
+        "^x$" {
+            Invoke-W11Optimiser -Mode "SafeOptimize" -ExtraArgs @("-SkipTempCleanup")
+            return
+        }
+        "^1$" {
+            Invoke-W11Optimiser -Mode "Preview"
+            return
+        }
+        "^2$" {
+            Invoke-W11Optimiser -Mode "Audit"
+            return
+        }
+        "^3$" {
+            Invoke-W11Optimiser -Mode "PostCheck"
+            return
+        }
+        "^4$" {
+            Invoke-W11Optimiser -Mode "OpenLastReport"
+            return
+        }
+        "^5$" {
+            Invoke-W11Optimiser -Mode "SafeOptimize"
+            return
+        }
+        "^6$" {
+            Invoke-W11Optimiser -Mode "UndoLatest"
+            return
+        }
+        "^0$" {
+            Write-Host "Cancelled. No changes were made." -ForegroundColor DarkGray
+            return
+        }
+        default {
+            Write-Host "Please choose X or 0-6." -ForegroundColor Yellow
+            Start-Sleep -Seconds 1
+        }
+    }
+}

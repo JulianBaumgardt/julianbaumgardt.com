@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Source code viewer for julianbaumgardt.com projects">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>source / julianbaumgardt.com</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: #000;
+        color: #f4f4f4;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      main {
+        width: min(1180px, 100%);
+        margin: 0 auto;
+        padding: clamp(22px, 5vw, 56px);
+      }
+
+      nav {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: clamp(44px, 8vw, 90px);
+      }
+
+      a {
+        color: #aaa;
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:focus-visible {
+        color: #fff;
+        outline: none;
+      }
+
+      h1 {
+        margin: 0 0 18px;
+        overflow-wrap: normal;
+        white-space: nowrap;
+        font-size: clamp(1.45rem, 5.6vw, 4.2rem);
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .meta {
+        margin: 0 0 34px;
+        color: #888;
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      .code-shell {
+        overflow: hidden;
+        border: 1px solid #222;
+        background: #050505;
+      }
+
+      .code-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 48px;
+        padding: 0 16px;
+        border-bottom: 1px solid #222;
+        color: #888;
+        font-size: 0.85rem;
+      }
+
+      button {
+        border: 1px solid #292929;
+        border-radius: 6px;
+        background: #101010;
+        color: #ddd;
+        cursor: pointer;
+        font: inherit;
+        min-height: 32px;
+        padding: 0 12px;
+      }
+
+      button:hover,
+      button:focus-visible {
+        background: #181818;
+        outline: none;
+      }
+
+      pre {
+        margin: 0;
+        overflow-x: auto;
+        overflow-y: visible;
+        padding: 18px 0;
+        line-height: 1.55;
+        tab-size: 2;
+      }
+
+      code {
+        display: block;
+        width: max-content;
+        min-width: 100%;
+        font: inherit;
+        font-size: clamp(0.78rem, 1.7vw, 0.95rem);
+      }
+
+      .line {
+        display: grid;
+        grid-template-columns: 84px max-content;
+        width: max-content;
+        min-width: 100%;
+      }
+
+      .line-number,
+      .line-code {
+        white-space: pre;
+      }
+
+      .line-number {
+        padding: 0 18px;
+        color: #444;
+        text-align: right;
+        user-select: none;
+      }
+
+      .line-code {
+        min-width: max-content;
+        padding-right: 22px;
+        color: #ddd;
+      }
+
+      .token-comment {
+        color: #6f777d;
+      }
+
+      .token-string {
+        color: #9ad47a;
+      }
+
+      .token-keyword {
+        color: #7da8ff;
+      }
+
+      .token-command {
+        color: #63d5ca;
+      }
+
+      .token-variable {
+        color: #f5d073;
+      }
+
+      .token-number {
+        color: #f0a5ff;
+      }
+
+      .token-tag,
+      .token-selector {
+        color: #63d5ca;
+      }
+
+      .token-attr,
+      .token-property {
+        color: #f5d073;
+      }
+
+      .token-at-rule {
+        color: #c792ea;
+      }
+
+      .token-punctuation {
+        color: #9aa0a6;
+      }
+
+      .token-important {
+        color: #ff7b72;
+        font-weight: 700;
+      }
+
+      .error {
+        border: 1px solid #2d2d2d;
+        padding: 18px;
+        color: #aaa;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 620px) {
+        nav {
+          display: grid;
+        }
+
+        .line {
+          grid-template-columns: 64px max-content;
+        }
+
+        .line-number {
+          padding: 0 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Page">
+        <a href="index.html#projects">Back To Projects</a>
+        <a id="raw-link" href="#">Open Raw Code</a>
+      </nav>
+
+      <h1 id="title">source</h1>
+      <p class="meta" id="meta">Loading source file.</p>
+
+      <section class="code-shell" aria-label="Source code">
+        <div class="code-toolbar">
+          <span id="file-label">source</span>
+          <button id="copy-button" type="button">Copy</button>
+        </div>
+        <pre id="code-block"><code></code></pre>
+      </section>
+    </main>
+
+    <script>
+      const allowedFiles = new Map([
+        ["cpu-benchmark.html", "CPU benchmark interface and embedded fallback worker source."],
+        ["cpu-benchmark.js", "Main benchmark controller, scoring, worker setup, and UI state."],
+        ["cpu-worker.js", "Browser Web Worker containing the WebAssembly benchmark kernel."],
+        ["cpu-benchmark-test.js", "Node tests for benchmark scoring noise and worker fallback consistency."],
+        ["w11", "Web bootstrapper for irm julianbaumgardt.com/w11 | iex."],
+        ["w11-optimiser/w11-optimiser.ps1", "W11 PowerShell tool for audit, safe optimisation, post-check, reporting, and undo."],
+        ["w11-optimiser/w11-optimiser-launcher.cmd", "W11 CMD launcher and command shortcuts for the optimiser."],
+        ["w11-optimiser/w11-optimiser-readme.md", "Simple run instructions, safety boundaries, modes, and generated output notes for W11 Optimiser."]
+      ]);
+
+      const params = new URLSearchParams(window.location.search);
+      const file = params.get("file") || "";
+      const title = document.getElementById("title");
+      const meta = document.getElementById("meta");
+      const rawLink = document.getElementById("raw-link");
+      const fileLabel = document.getElementById("file-label");
+      const codeBlock = document.getElementById("code-block");
+      const copyButton = document.getElementById("copy-button");
+      let currentSource = "";
+
+      function escapeHtml(value) {
+        return value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function getDisplayName(fileName) {
+        return fileName.split("/").pop() || fileName;
+      }
+
+      function tokenSpan(className, value) {
+        return '<span class="' + className + '">' + escapeHtml(value) + '</span>';
+      }
+
+      function highlightJs(line) {
+        const tokenPattern = /(\/\/.*$)|(`(?:[^\\`]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|async|await|try|catch|throw|new|class|extends|typeof|instanceof|true|false|null|undefined|import|export|from)\b|\b(0x[0-9a-fA-F]+|\d+(?:\.\d+)?)\b/g;
+        let html = "";
+        let lastIndex = 0;
+
+        for (const match of line.matchAll(tokenPattern)) {
+          html += escapeHtml(line.slice(lastIndex, match.index));
+
+          if (match[1]) {
+            html += tokenSpan("token-comment", match[1]);
+          } else if (match[2]) {
+            html += tokenSpan("token-string", match[2]);
+          } else if (match[3]) {
+            html += tokenSpan("token-keyword", match[3]);
+          } else if (match[4]) {
+            html += tokenSpan("token-number", match[4]);
+          }
+
+          lastIndex = match.index + match[0].length;
+        }
+
+        html += escapeHtml(line.slice(lastIndex));
+        return html;
+      }
+
+      function highlightHtmlMarkup(segment) {
+        const tokenPattern = /(&lt;!--.*?--&gt;)|(&lt;\/?[a-zA-Z0-9-]+)|\b([a-zA-Z_:][-a-zA-Z0-9_:.]*)(=)("(?:[^"]*)"|'(?:[^']*)')/g;
+        const escaped = escapeHtml(segment);
+        let html = "";
+        let lastIndex = 0;
+
+        for (const match of escaped.matchAll(tokenPattern)) {
+          html += escaped.slice(lastIndex, match.index);
+
+          if (match[1]) {
+            html += '<span class="token-comment">' + match[1] + '</span>';
+          } else if (match[2]) {
+            html += '<span class="token-tag">' + match[2] + '</span>';
+          } else if (match[3]) {
+            html += '<span class="token-attr">' + match[3] + '</span>' + match[4] + '<span class="token-string">' + match[5] + '</span>';
+          }
+
+          lastIndex = match.index + match[0].length;
+        }
+
+        html += escaped.slice(lastIndex);
+        return html;
+      }
+
+      function highlightCss(line) {
+        const tokenPattern = /(\/\*.*?\*\/)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(!important\b)|(@[-a-zA-Z]+)|(--[-a-zA-Z0-9_]+|[-a-zA-Z]+(?=\s*:))|(#(?:[0-9a-fA-F]{3,8})\b)|(\.[-a-zA-Z0-9_]+|#[a-zA-Z_][-a-zA-Z0-9_]*|::?[-a-zA-Z0-9_]+)|\b(-?\d*\.?\d+(?:px|rem|em|vh|vw|vmin|vmax|%|ms|s|deg|fr)?)\b|([{}()[\],;:])/g;
+        let html = "";
+        let lastIndex = 0;
+
+        for (const match of line.matchAll(tokenPattern)) {
+          html += escapeHtml(line.slice(lastIndex, match.index));
+
+          if (match[1]) {
+            html += tokenSpan("token-comment", match[1]);
+          } else if (match[2]) {
+            html += tokenSpan("token-string", match[2]);
+          } else if (match[3]) {
+            html += tokenSpan("token-important", match[3]);
+          } else if (match[4]) {
+            html += tokenSpan("token-at-rule", match[4]);
+          } else if (match[5]) {
+            html += tokenSpan("token-property", match[5]);
+          } else if (match[6]) {
+            html += tokenSpan("token-number", match[6]);
+          } else if (match[7]) {
+            html += tokenSpan("token-selector", match[7]);
+          } else if (match[8]) {
+            html += tokenSpan("token-number", match[8]);
+          } else if (match[9]) {
+            html += tokenSpan("token-punctuation", match[9]);
+          }
+
+          lastIndex = match.index + match[0].length;
+        }
+
+        html += escapeHtml(line.slice(lastIndex));
+        return html;
+      }
+
+      function highlightHtml(line, state) {
+        let html = "";
+        let rest = line;
+
+        while (rest.length > 0) {
+          if (state.embeddedLanguage === "css") {
+            const closeIndex = rest.search(/<\/style\s*>/i);
+            if (closeIndex === -1) {
+              html += highlightCss(rest);
+              return html;
+            }
+
+            html += highlightCss(rest.slice(0, closeIndex));
+            const closingTag = rest.slice(closeIndex).match(/^<\/style\s*>/i)[0];
+            html += highlightHtmlMarkup(closingTag);
+            rest = rest.slice(closeIndex + closingTag.length);
+            state.embeddedLanguage = "html";
+            continue;
+          }
+
+          if (state.embeddedLanguage === "js") {
+            const closeIndex = rest.search(/<\/script\s*>/i);
+            if (closeIndex === -1) {
+              html += highlightJs(rest);
+              return html;
+            }
+
+            html += highlightJs(rest.slice(0, closeIndex));
+            const closingTag = rest.slice(closeIndex).match(/^<\/script\s*>/i)[0];
+            html += highlightHtmlMarkup(closingTag);
+            rest = rest.slice(closeIndex + closingTag.length);
+            state.embeddedLanguage = "html";
+            continue;
+          }
+
+          const styleMatch = rest.match(/<style\b[^>]*>/i);
+          const scriptMatch = rest.match(/<script\b[^>]*>/i);
+          const styleIndex = styleMatch ? rest.search(/<style\b[^>]*>/i) : -1;
+          const scriptIndex = scriptMatch ? rest.search(/<script\b[^>]*>/i) : -1;
+          const hasStyle = styleIndex !== -1;
+          const hasScript = scriptIndex !== -1;
+
+          if (!hasStyle && !hasScript) {
+            html += highlightHtmlMarkup(rest);
+            return html;
+          }
+
+          const useStyle = hasStyle && (!hasScript || styleIndex < scriptIndex);
+          const index = useStyle ? styleIndex : scriptIndex;
+          const tag = useStyle ? styleMatch[0] : scriptMatch[0];
+          html += highlightHtmlMarkup(rest.slice(0, index));
+          html += highlightHtmlMarkup(tag);
+          rest = rest.slice(index + tag.length);
+          state.embeddedLanguage = useStyle ? "css" : "js";
+        }
+
+        return html;
+      }
+
+      function highlightPowerShell(line) {
+        const tokenPattern = /(#.*$)|(`(?:[^`]|\`)*`|"(?:[^"\]|\.)*"|'(?:[^']|'')*')|(\$[a-zA-Z_][\w:.-]*)|\b(function|param|if|elseif|else|foreach|for|while|switch|try|catch|finally|return|throw|true|false|null)\b|\b(Get|Set|New|Remove|Write|Invoke|Export|Import|Start|Stop|Test|Select|Sort|Where|ConvertTo|Add|Clear|Checkpoint|Optimize)-[A-Za-z][A-Za-z0-9-]*\b|(-[A-Za-z][A-Za-z0-9-]*)|\b(0x[0-9a-fA-F]+|\d+(?:\.\d+)?)\b/g;
+        let html = "";
+        let lastIndex = 0;
+
+        for (const match of line.matchAll(tokenPattern)) {
+          html += escapeHtml(line.slice(lastIndex, match.index));
+
+          if (match[1]) {
+            html += tokenSpan("token-comment", match[1]);
+          } else if (match[2]) {
+            html += tokenSpan("token-string", match[2]);
+          } else if (match[3]) {
+            html += tokenSpan("token-variable", match[3]);
+          } else if (match[4]) {
+            html += tokenSpan("token-keyword", match[4]);
+          } else if (match[5]) {
+            html += tokenSpan("token-command", match[5]);
+          } else if (match[6]) {
+            html += tokenSpan("token-attr", match[6]);
+          } else if (match[7]) {
+            html += tokenSpan("token-number", match[7]);
+          }
+
+          lastIndex = match.index + match[0].length;
+        }
+
+        html += escapeHtml(line.slice(lastIndex));
+        return html;
+      }
+
+      function highlightBatch(line) {
+        const tokenPattern = /(\brem\b.*$|^\s*::.*$)|("(?:[^"]|"")*")|(%[^%\s]+%|%~?[a-zA-Z0-9]+)|(^\s*:[A-Za-z0-9_-]+)|\b(@echo|echo|setlocal|set|if|goto|call|powershell|pause|exit|cls|not|exist)\b|(\/[A-Za-z?]+)|\b(\d+)\b/gi;
+        let html = "";
+        let lastIndex = 0;
+
+        for (const match of line.matchAll(tokenPattern)) {
+          html += escapeHtml(line.slice(lastIndex, match.index));
+
+          if (match[1]) {
+            html += tokenSpan("token-comment", match[1]);
+          } else if (match[2]) {
+            html += tokenSpan("token-string", match[2]);
+          } else if (match[3]) {
+            html += tokenSpan("token-variable", match[3]);
+          } else if (match[4]) {
+            html += tokenSpan("token-selector", match[4]);
+          } else if (match[5]) {
+            html += tokenSpan("token-keyword", match[5]);
+          } else if (match[6]) {
+            html += tokenSpan("token-attr", match[6]);
+          } else if (match[7]) {
+            html += tokenSpan("token-number", match[7]);
+          }
+
+          lastIndex = match.index + match[0].length;
+        }
+
+        html += escapeHtml(line.slice(lastIndex));
+        return html;
+      }
+
+      function highlightMarkdown(line) {
+        if (/^#{1,6}\s/.test(line)) {
+          const marker = line.match(/^#{1,6}/)[0];
+          return tokenSpan("token-keyword", marker) + escapeHtml(line.slice(marker.length));
+        }
+        if (/^\s*[-*]\s/.test(line)) {
+          return line.replace(/^(\s*)([-*])(\s)/, function (_, indent, marker, space) {
+            return escapeHtml(indent) + tokenSpan("token-keyword", marker) + escapeHtml(space);
+          }).replace(/`([^`]+)`/g, function (_, value) {
+            return tokenSpan("token-string", "`" + value + "`");
+          });
+        }
+        if (/^```/.test(line)) return tokenSpan("token-keyword", line);
+        return escapeHtml(line).replace(/`([^`]+)`/g, '<span class="token-string">`$1`</span>');
+      }
+
+      function getLanguage(fileName) {
+        const cleanName = fileName.split("?")[0].toLowerCase();
+        if (cleanName === "w11") return "powershell";
+        if (cleanName.endsWith(".html") || cleanName.endsWith(".htm")) return "html";
+        if (cleanName.endsWith(".css")) return "css";
+        if (cleanName.endsWith(".js") || cleanName.endsWith(".mjs") || cleanName.endsWith(".cjs")) return "js";
+        if (cleanName.endsWith(".ps1") || cleanName.endsWith(".psm1")) return "powershell";
+        if (cleanName.endsWith(".cmd") || cleanName.endsWith(".bat")) return "batch";
+        if (cleanName.endsWith(".md")) return "markdown";
+        return "plain";
+      }
+
+      function highlightLine(line, fileName, state) {
+        const language = getLanguage(fileName);
+        if (language === "html") return highlightHtml(line, state);
+        if (language === "css") return highlightCss(line);
+        if (language === "js") return highlightJs(line);
+        if (language === "powershell") return highlightPowerShell(line);
+        if (language === "batch") return highlightBatch(line);
+        if (language === "markdown") return highlightMarkdown(line);
+        return escapeHtml(line);
+      }
+
+      function renderCode(source) {
+        currentSource = source;
+        const state = { embeddedLanguage: "html" };
+        const rows = source.split("\n").map((line, index) => {
+          return '<span class="line"><span class="line-number">' +
+            String(index + 1) +
+            '</span><span class="line-code">' +
+            highlightLine(line, file, state) +
+            "</span></span>";
+        }).join("");
+
+        codeBlock.innerHTML = "<code>" + rows + "</code>";
+      }
+
+      async function loadSource() {
+        if (!allowedFiles.has(file)) {
+          document.querySelector(".code-shell").outerHTML =
+            '<div class="error">That source file is not available from this viewer.</div>';
+          title.textContent = "source unavailable";
+          document.title = "source unavailable";
+          meta.textContent = "Choose a source file from the project list.";
+          rawLink.hidden = true;
+          return;
+        }
+
+        const displayName = getDisplayName(file);
+        title.textContent = displayName;
+        document.title = "source / " + displayName;
+        meta.textContent = allowedFiles.get(file);
+        fileLabel.textContent = displayName;
+        rawLink.href = file;
+
+        try {
+          const response = await fetch(file, { cache: "no-store" });
+          if (!response.ok) throw new Error("Could not load " + file + ".");
+          renderCode(await response.text());
+        } catch (error) {
+          document.querySelector(".code-shell").outerHTML =
+            '<div class="error">The code viewer could not load this file. If you opened this page directly from Finder, try viewing it through the hosted website or a local server.</div>';
+        }
+      }
+
+      copyButton.addEventListener("click", async () => {
+        if (!currentSource) return;
+        await navigator.clipboard.writeText(currentSource);
+        copyButton.textContent = "Copied";
+        window.setTimeout(() => {
+          copyButton.textContent = "Copy";
+        }, 1200);
+      });
+
+      loadSource();
+    </script>
+  </body>
+</html>
