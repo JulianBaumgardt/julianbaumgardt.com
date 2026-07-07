@@ -8,6 +8,7 @@ if (-not [string]::IsNullOrWhiteSpace($env:W11_OPTIMISER_BASE_URL)) {
 $scriptUrl = "$baseUrl/w11-optimiser/w11-optimiser.ps1"
 $installRoot = Join-Path $env:TEMP "W11-Optimiser"
 $scriptPath = Join-Path $installRoot "w11-optimiser.ps1"
+$script:W11LastExitCode = 0
 
 function Write-BannerLine {
     param(
@@ -38,7 +39,7 @@ function Write-Title {
 
 function Download-W11Optimiser {
     New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
-    Write-Host "Downloading latest W11 Optimiser..." -ForegroundColor Cyan
+    Write-Host "DOWNLOADING LATEST W11 OPTIMISER..." -ForegroundColor Cyan
     Invoke-WebRequest -UseBasicParsing -Uri $scriptUrl -OutFile $scriptPath
     try {
         Unblock-File -Path $scriptPath -ErrorAction Stop
@@ -54,7 +55,12 @@ function Invoke-W11Optimiser {
     )
 
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Mode $Mode @ExtraArgs
-    return $LASTEXITCODE
+    if ($null -eq $LASTEXITCODE) {
+        $script:W11LastExitCode = 0
+    }
+    else {
+        $script:W11LastExitCode = [int] $LASTEXITCODE
+    }
 }
 
 function Invoke-W11MenuAction {
@@ -63,25 +69,26 @@ function Invoke-W11MenuAction {
         [string[]] $ExtraArgs = @()
     )
 
-    $exitCode = Invoke-W11Optimiser -Mode $Mode -ExtraArgs $ExtraArgs
+    Invoke-W11Optimiser -Mode $Mode -ExtraArgs $ExtraArgs
+    $exitCode = $script:W11LastExitCode
     Write-Host ""
     if ($exitCode -eq 0) {
-        Write-Host "Finished. If a report was generated, it should open in your browser." -ForegroundColor Green
-        Write-Host "Files are saved in Desktop\W11 Optimiser." -ForegroundColor DarkGray
+        Write-Host "DONE. IF A REPORT WAS GENERATED, IT SHOULD OPEN IN YOUR BROWSER." -ForegroundColor Green
+        Write-Host "FILES ARE SAVED IN DESKTOP\W11 OPTIMISER." -ForegroundColor DarkGray
     }
     else {
-        Write-Host "Stopped or failed. No further menu action was taken." -ForegroundColor Yellow
-        Write-Host "Exit code: $exitCode" -ForegroundColor DarkGray
+        Write-Host "STOPPED OR FAILED. NO FURTHER MENU ACTION WAS TAKEN." -ForegroundColor Yellow
+        Write-Host "EXIT CODE: $exitCode" -ForegroundColor DarkGray
     }
     Write-Host ""
-    [void] (Read-Host "Press Enter to return to the menu")
+    [void] (Read-Host "PRESS ENTER TO RETURN TO THE MENU")
 }
 
 Write-Title
-Write-Host "This command downloads the latest W11 Optimiser script from:" -ForegroundColor DarkGray
+Write-Host "THIS COMMAND DOWNLOADS THE LATEST W11 OPTIMISER SCRIPT FROM:" -ForegroundColor DarkGray
 Write-Host "  $scriptUrl" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "No optimisation starts until you choose an option." -ForegroundColor Yellow
+Write-Host "NO OPTIMISATION STARTS UNTIL YOU CHOOSE AN OPTION." -ForegroundColor Yellow
 Write-Host ""
 
 try {
@@ -89,31 +96,31 @@ try {
 }
 catch {
     Write-Host ""
-    Write-Host "Download failed. No changes were made." -ForegroundColor Red
+    Write-Host "DOWNLOAD FAILED. NO CHANGES WERE MADE." -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor DarkGray
     return
 }
 
 while ($true) {
     Write-Title
-    Write-Host "Recommended" -ForegroundColor White
-    Write-Host "  X  Apply safe optimisations (skip temp/cache cleanup)"
+    Write-Host "RECOMMENDED" -ForegroundColor White
+    Write-Host "  X  SAFE OPTIMISE (NO TEMP/CACHE CLEANUP)"
     Write-Host ""
-    Write-Host "Reports" -ForegroundColor White
-    Write-Host "  1  Preview planned changes"
-    Write-Host "  2  Audit only"
-    Write-Host "  3  Post-check report"
-    Write-Host "  4  Open last report"
+    Write-Host "REPORTS" -ForegroundColor White
+    Write-Host "  1  PREVIEW"
+    Write-Host "  2  AUDIT"
+    Write-Host "  3  POST-CHECK"
+    Write-Host "  4  OPEN LAST REPORT"
     Write-Host ""
-    Write-Host "Maintenance" -ForegroundColor White
-    Write-Host "  5  Safe optimise (include old temp/cache cleanup)"
-    Write-Host "  6  Undo latest run"
+    Write-Host "MAINTENANCE" -ForegroundColor White
+    Write-Host "  5  SAFE OPTIMISE + TEMP/CACHE CLEANUP"
+    Write-Host "  6  UNDO LATEST RUN"
     Write-Host ""
-    Write-Host "Other" -ForegroundColor White
-    Write-Host "  0  Exit"
+    Write-Host "OTHER" -ForegroundColor White
+    Write-Host "  0  EXIT"
     Write-Host ""
 
-    $choice = Read-Host "Choose an option"
+    $choice = Read-Host "CHOOSE AN OPTION"
 
     switch -Regex ($choice) {
         "^x$" {
@@ -138,11 +145,11 @@ while ($true) {
             Invoke-W11MenuAction -Mode "UndoLatest"
         }
         "^0$" {
-            Write-Host "Cancelled. No changes were made." -ForegroundColor DarkGray
+            Write-Host "CANCELLED. NO CHANGES WERE MADE." -ForegroundColor DarkGray
             return
         }
         default {
-            Write-Host "Please choose X or 0-6." -ForegroundColor Yellow
+            Write-Host "PLEASE CHOOSE X OR 0-6." -ForegroundColor Yellow
             Start-Sleep -Seconds 1
         }
     }

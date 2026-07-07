@@ -42,90 +42,86 @@ echo                                               by Julian Baumgardt
 echo.
 echo   ================================================================================================================
 echo.
-echo   Recommended
-echo     X  Apply all safe optimisations ^(recommended^)
+echo   RECOMMENDED
+echo     X  SAFE OPTIMISE ^(NO TEMP/CACHE CLEANUP^)
 echo.
-echo   Reports
-echo     1  Audit only
-echo     4  Post-check report
-echo     7  Preview planned changes
-echo     8  View last report
+echo   REPORTS
+echo     1  PREVIEW
+echo     2  AUDIT
+echo     3  POST-CHECK
+echo     4  OPEN LAST REPORT
 echo.
-echo   Maintenance
-echo     2  Safe optimise ^(skip temp/cache cleanup^)
-echo     3  Safe optimise ^(include old temp/cache cleanup^)
-echo     5  Undo latest run
+echo   MAINTENANCE
+echo     5  SAFE OPTIMISE + TEMP/CACHE CLEANUP
+echo     6  UNDO LATEST RUN
 echo.
-echo   Other
-echo     6  Help
-echo     0  Exit
+echo   OTHER
+echo     0  EXIT
 echo.
-set /p "choice=Choose an option: "
+set /p "choice=CHOOSE AN OPTION: "
 
 if /I "%choice%"=="X" goto safe
-if "%choice%"=="1" goto audit
-if "%choice%"=="2" goto safe
-if "%choice%"=="3" goto safeclean
-if "%choice%"=="4" goto check
-if "%choice%"=="5" goto undo
-if "%choice%"=="6" goto help
-if "%choice%"=="7" goto preview
-if "%choice%"=="8" goto lastreport
+if "%choice%"=="1" goto preview
+if "%choice%"=="2" goto audit
+if "%choice%"=="3" goto check
+if "%choice%"=="4" goto lastreport
+if "%choice%"=="5" goto safeclean
+if "%choice%"=="6" goto undo
 if "%choice%"=="0" exit /b 0
 
 echo.
-echo Please choose X or 0-8.
+echo PLEASE CHOOSE X OR 0-6.
 pause
 goto menu
 
 :audit
-call :banner "Audit Only"
+call :banner "AUDIT"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -Mode Audit
 goto done
 
 :preview
-call :banner "Preview Planned Changes"
+call :banner "PREVIEW"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -Mode Preview
 goto done
 
 :safe
-call :confirm_safe "skip temp/cache cleanup"
+call :confirm_safe "NO TEMP/CACHE CLEANUP"
 if errorlevel 1 goto menu
-call :banner "Safe Optimise - Skip Temp Cleanup"
+call :banner "SAFE OPTIMISE - NO TEMP/CACHE CLEANUP"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -Mode SafeOptimize -SkipTempCleanup -Force
 goto done
 
 :safeclean
-call :confirm_safe "include old temp/cache cleanup"
+call :confirm_safe "TEMP/CACHE CLEANUP INCLUDED"
 if errorlevel 1 goto menu
-call :banner "Safe Optimise - Include Old Temp Cleanup"
+call :banner "SAFE OPTIMISE - TEMP/CACHE CLEANUP INCLUDED"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -Mode SafeOptimize -Force
 goto done
 
 :check
-call :banner "Post-Check Report"
+call :banner "POST-CHECK"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -Mode PostCheck
 goto done
 
 :lastreport
-call :banner "View Last Report"
+call :banner "OPEN LAST REPORT"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -Mode OpenLastReport
 goto done
 
 :undo
 call :confirm_undo
 if errorlevel 1 goto menu
-call :banner "Undo Latest Run"
+call :banner "UNDO LATEST RUN"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" -Mode UndoLatest -Force
 goto done
 
 :help
 cls
 echo.
-echo W11 Optimiser Launcher
+echo W11 OPTIMISER LAUNCHER
 echo ============================
 echo.
-echo Double-click this file for the menu, or run one of these:
+echo DOUBLE-CLICK THIS FILE FOR THE MENU, OR RUN ONE OF THESE:
 echo.
 echo   w11-optimiser-launcher.cmd audit
 echo   w11-optimiser-launcher.cmd preview
@@ -135,15 +131,15 @@ echo   w11-optimiser-launcher.cmd check
 echo   w11-optimiser-launcher.cmd report
 echo   w11-optimiser-launcher.cmd undo
 echo.
-echo Generated files go here:
+echo GENERATED FILES GO HERE:
 echo.
 echo   Desktop\W11 Optimiser
 echo.
-echo Audit, preview, safe, and check modes open a clean HTML report in your browser.
+echo AUDIT, PREVIEW, SAFE, AND CHECK MODES OPEN A CLEAN HTML REPORT IN YOUR BROWSER.
 echo.
-echo Safe mode does not disable Defender, Firewall, Windows Update,
-echo Memory Integrity, HAGS, services, drivers, vendor GPU software,
-echo BIOS settings, overclocking, undervolting, or startup apps.
+echo SAFE MODE DOES NOT DISABLE DEFENDER, FIREWALL, WINDOWS UPDATE,
+echo MEMORY INTEGRITY, HAGS, SERVICES, DRIVERS, VENDOR GPU SOFTWARE,
+echo BIOS SETTINGS, OVERCLOCKING, UNDERVOLTING, OR STARTUP APPS.
 echo.
 goto done
 
@@ -151,25 +147,33 @@ goto done
 cls
 echo.
 echo   ============================================================
-echo      Confirm Safe Optimisation
+echo      CONFIRM SAFE OPTIMISE
 echo   ============================================================
 echo.
-echo   This will:
-echo     + Create a restore point
-echo     + Save local backups before changes
-echo     + Tune safe AC power and gaming responsiveness settings
-echo     + Keep Defender, Firewall, Windows Update, drivers, services,
-echo       BIOS, overclocking, undervolting, and security settings untouched
-echo     + Generate a local browser report
+echo   YES WILL:
+echo     + APPLY ONLY THE SAFE ITEMS LISTED HERE
+echo     + CREATE OR VERIFY A RESTORE POINT
+echo     + SAVE LOCAL BACKUPS BEFORE CHANGES
+echo     + TUNE SAFE AC POWER AND GAMING RESPONSIVENESS SETTINGS
+echo     + OPTIMISE ACTIVE PHYSICAL NETWORK ADAPTER POWER SAVING
+echo     + GENERATE A LOCAL BROWSER REPORT
 echo.
-echo   Cleanup mode: %~1
-echo   Output folder: Desktop\W11 Optimiser
+echo   NO WILL:
+echo     + CANCEL BEFORE ANY CHANGES ARE MADE
 echo.
-set /p "confirm=Continue? (Y/N): "
+echo   SAFE BOUNDARY:
+echo     + DEFENDER, FIREWALL, WINDOWS UPDATE, DRIVERS, SERVICES,
+echo       BIOS, OVERCLOCKING, UNDERVOLTING, HAGS, MEMORY INTEGRITY,
+echo       AND STARTUP APPS ARE NOT CHANGED
+echo.
+echo   CLEANUP: %~1
+echo   OUTPUT: DESKTOP\W11 OPTIMISER
+echo.
+set /p "confirm=CONTINUE? (Y/N): "
 if /I "%confirm%"=="Y" exit /b 0
 if /I "%confirm%"=="YES" exit /b 0
 echo.
-echo Cancelled. No changes were made.
+echo CANCELLED. NO CHANGES WERE MADE.
 pause
 exit /b 1
 
@@ -177,17 +181,18 @@ exit /b 1
 cls
 echo.
 echo   ============================================================
-echo      Confirm Undo
+echo      CONFIRM UNDO
 echo   ============================================================
 echo.
-echo   This will restore settings from the latest saved W11 Optimiser run.
-echo   It uses local backup files from Desktop\W11 Optimiser.
+echo   YES WILL RESTORE SETTINGS FROM THE LATEST SAVED W11 OPTIMISER RUN.
+echo   NO WILL CANCEL BEFORE ANY CHANGES ARE MADE.
+echo   IT USES LOCAL BACKUP FILES FROM DESKTOP\W11 OPTIMISER.
 echo.
-set /p "confirm=Continue? (Y/N): "
+set /p "confirm=CONTINUE? (Y/N): "
 if /I "%confirm%"=="Y" exit /b 0
 if /I "%confirm%"=="YES" exit /b 0
 echo.
-echo Cancelled. No changes were made.
+echo CANCELLED. NO CHANGES WERE MADE.
 pause
 exit /b 1
 
@@ -204,11 +209,11 @@ exit /b 0
 set "LAST_STATUS=%ERRORLEVEL%"
 echo.
 if "%LAST_STATUS%"=="0" (
-    echo Finished. If a report was generated, it should open in your browser.
-    echo Files are saved in Desktop\W11 Optimiser.
+    echo DONE. IF A REPORT WAS GENERATED, IT SHOULD OPEN IN YOUR BROWSER.
+    echo FILES ARE SAVED IN DESKTOP\W11 OPTIMISER.
 ) else (
-    echo Stopped or failed. No further launcher action was taken.
-    echo If a report was created, it will be saved in Desktop\W11 Optimiser.
+    echo STOPPED OR FAILED. NO FURTHER LAUNCHER ACTION WAS TAKEN.
+    echo IF A REPORT WAS CREATED, IT WILL BE SAVED IN DESKTOP\W11 OPTIMISER.
 )
 echo.
 pause

@@ -318,19 +318,19 @@ function Confirm-RunAction {
     }
 
     Write-Host ""
-    Write-Host ("=== {0} ===" -f $Title) -ForegroundColor Cyan
+    Write-Host ("=== {0} ===" -f $Title.ToUpperInvariant()) -ForegroundColor Cyan
     Write-Host ""
     foreach ($line in $Lines) {
         Write-Host ("  {0}" -f $line)
     }
     Write-Host ""
 
-    $answer = Read-Host "Continue? (Y/N)"
+    $answer = Read-Host "CONTINUE? (Y/N)"
     if ($answer -match "^(?i:y(?:es)?)$") {
         return $true
     }
 
-    Write-ConsoleStatus -Tag "CANCEL" -Message "Cancelled. No changes were made." -Color DarkGray
+    Write-ConsoleStatus -Tag "CANCEL" -Message "CANCELLED. NO CHANGES WERE MADE." -Color DarkGray
     return $false
 }
 
@@ -468,8 +468,9 @@ function New-HtmlReportFromText {
     pre {
       margin: 0;
       padding: 22px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
+      white-space: pre;
+      overflow-x: auto;
+      overflow-wrap: normal;
       font-family: Consolas, Cascadia Mono, monospace;
       font-size: 13px;
     }
@@ -550,7 +551,7 @@ function Invoke-OpenLastReport {
         exit 1
     }
 
-    Write-Host "Opening latest report: $($latestReport.FullName)" -ForegroundColor Green
+    Write-Host "OPENING LATEST REPORT: $($latestReport.FullName)" -ForegroundColor Green
     Open-ReportInBrowser -Path $latestReport.FullName
 }
 
@@ -854,7 +855,7 @@ function Invoke-Audit {
     [void] $builder.AppendLine("- Laptop/battery systems: use these optimizations while plugged in; check OEM performance mode and cooling profile manually.")
 
     New-HtmlReportFromText -Title "W11 Optimiser - Audit" -Text $builder.ToString() -OutputPath $reportPath | Out-Null
-    Write-Host "Audit report written to: $reportPath" -ForegroundColor Green
+    Write-Host "AUDIT REPORT WRITTEN TO: $reportPath" -ForegroundColor Green
     Open-ReportInBrowser -Path $reportPath
 }
 
@@ -928,7 +929,7 @@ function Invoke-Preview {
     [void] $builder.AppendLine("- Preview does not change power plans, Game DVR, visual settings, TRIM, network adapters, temp files, Defender, Firewall, Windows Update, drivers, services, BIOS, HAGS, overclocking, undervolting, or startup apps.")
 
     New-HtmlReportFromText -Title "W11 Optimiser - Preview" -Text $builder.ToString() -OutputPath $reportPath | Out-Null
-    Write-Host "Preview report written to: $reportPath" -ForegroundColor Green
+    Write-Host "PREVIEW REPORT WRITTEN TO: $reportPath" -ForegroundColor Green
     Open-ReportInBrowser -Path $reportPath
 }
 
@@ -1401,10 +1402,16 @@ function Write-SafeOptimisationRunReport {
 
     $reportPath = Join-Path $script:BackupPath "Run Report.html"
     $restorePointSummary = if ($SkipRestorePoint) {
-        "Skipped system restore point because -SkipRestorePoint was passed."
+        "[SKIP] RESTORE POINT: SKIPPED BECAUSE -SKIPRESTOREPOINT WAS PASSED."
     }
     else {
-        "Created or accepted a recent system restore point."
+        "[OK] RESTORE POINT: CREATED OR ACCEPTED A RECENT RESTORE POINT."
+    }
+    $cleanupLine = if ($SkipTempCleanup) {
+        "[SKIP] TEMP/CACHE CLEANUP: SKIPPED BY RECOMMENDED MODE."
+    }
+    else {
+        "[OK] TEMP/CACHE CLEANUP: CLEANED OLD SAFE REBUILDABLE FILES."
     }
     $warningText = if ($script:LogWarnings.Count -gt 0) {
         ($script:LogWarnings | ForEach-Object { "- $_" }) -join "`r`n"
@@ -1450,22 +1457,22 @@ function Write-SafeOptimisationRunReport {
     }
 
     $reportText = @"
-W11 Optimiser - Run Report
+W11 OPTIMISER - RUN REPORT
 ================================
-Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
-Computer: $env:COMPUTERNAME
-User: $env:USERNAME
-Folder: $script:BackupPath
+GENERATED: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
+COMPUTER: $env:COMPUTERNAME
+USER: $env:USERNAME
+FOLDER: $script:BackupPath
 
-Result
+RESULT
 ------
-Safe optimisation completed.
+SAFE OPTIMISATION COMPLETED.
 
-Quick Status
+QUICK STATUS
 ------------
 $activePlan
 
-Game DVR/background capture:
+GAME DVR/BACKGROUND CAPTURE:
 - GameDVR_Enabled: $(Get-RegistryValueSafe -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_Enabled")
 - AppCaptureEnabled: $(Get-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -Name "AppCaptureEnabled")
 - HistoricalCaptureEnabled: $(Get-RegistryValueSafe -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -Name "HistoricalCaptureEnabled")
@@ -1474,67 +1481,69 @@ Game DVR/background capture:
 TRIM:
 $trimStatus
 
-Network adapter sleep permission:
+NETWORK ADAPTER SLEEP PERMISSION:
 $networkPowerStatus
 
-What Changed
+WHAT CHANGED
 ------------
-- $restorePointSummary
-- Saved state and registry backups in this folder.
-- Enabled Ultimate Performance if available/creatable, otherwise High Performance.
-- Set AC processor minimum to 10 percent and maximum to 100 percent.
-- Disabled PCIe Link State Power Management for AC.
-- Disabled USB selective suspend for AC.
-- Set wireless adapter power saving to Maximum Performance for AC.
-- Disabled Game DVR/background capture registry settings.
-- Kept Game Mode enabled.
-- Applied a conservative visual performance profile.
-- Ensured TRIM is enabled.
-- Ran SSD ReTrim maintenance on supported fixed NTFS/ReFS volumes.
-- Disabled physical network adapter sleep permission where supported, with a registry fallback for adapters/drivers that do not expose the setting through the cmdlet.
-- $CleanupSummary
+$restorePointSummary
+[OK] BACKUPS: SAVED STATE AND REGISTRY BACKUPS IN THIS FOLDER.
+[OK] POWER PLAN: ENABLED ULTIMATE PERFORMANCE IF AVAILABLE, OTHERWISE HIGH PERFORMANCE.
+[OK] CPU POWER: SET AC MINIMUM TO 10 PERCENT AND MAXIMUM TO 100 PERCENT.
+[OK] PCI EXPRESS: DISABLED LINK STATE POWER MANAGEMENT ON AC.
+[OK] USB POWER: DISABLED USB SELECTIVE SUSPEND ON AC.
+[OK] WI-FI POWER: SET WIRELESS ADAPTER POWER SAVING TO MAXIMUM PERFORMANCE ON AC.
+[OK] GAME DVR: DISABLED BACKGROUND CAPTURE REGISTRY SETTINGS.
+[OK] GAME MODE: KEPT WINDOWS GAME MODE ENABLED.
+[OK] VISUALS: APPLIED A CONSERVATIVE RESPONSIVENESS PROFILE.
+[OK] STORAGE: ENSURED TRIM IS ENABLED.
+[OK] STORAGE: RAN SSD RETRIM ON SUPPORTED FIXED NTFS/REFS VOLUMES.
+[OK] NETWORK: DISABLED ACTIVE PHYSICAL ADAPTER SLEEP PERMISSION WHERE SUPPORTED.
+$cleanupLine
 
-What Was Not Changed
+WHAT WAS NOT CHANGED
 --------------------
-- Startup apps were listed for review only.
-- VBS/Memory Integrity was not changed.
-- Defender, firewall, Windows Update, and Microsoft Store were not changed.
-- GPU vendor software, drivers, services, BIOS/UEFI, HAGS, overclocking, and undervolting were not changed.
-- GPU vendor-specific settings were not changed.
+[NO CHANGE] STARTUP APPS: LISTED FOR REVIEW ONLY.
+[NO CHANGE] VBS/MEMORY INTEGRITY: NOT CHANGED.
+[NO CHANGE] DEFENDER/FIREWALL/WINDOWS UPDATE/MICROSOFT STORE: NOT CHANGED.
+[NO CHANGE] GPU SOFTWARE/DRIVERS/SERVICES/BIOS/HAGS/OVERCLOCKING/UNDERVOLTING: NOT CHANGED.
+[NO CHANGE] GPU VENDOR-SPECIFIC SETTINGS: NOT CHANGED.
 
-Warnings
+WARNINGS
 --------
 $warningText
 
-Errors
+ERRORS
 ------
 $errorText
 
-Report Notes
+REPORT NOTES
 ------------
-This page is the main report. It opens in your browser from a local file; nothing is uploaded online. Essential local backups are saved quietly in the run folder so undo remains possible.
+THIS PAGE OPENS FROM A LOCAL FILE. NOTHING IS UPLOADED ONLINE.
+ESSENTIAL LOCAL BACKUPS ARE SAVED IN THE RUN FOLDER SO UNDO REMAINS POSSIBLE.
 
-Riskier Tweaks
+RISKIER TWEAKS
 --------------
-Pros:
-- Some can help in very specific systems or games.
-- Startup cleanup can make login lighter.
-- HAGS or VBS changes can sometimes alter performance measurably.
+PROS:
+- SOME CAN HELP IN VERY SPECIFIC SYSTEMS OR GAMES.
+- STARTUP CLEANUP CAN MAKE LOGIN LIGHTER.
+- HAGS OR VBS CHANGES CAN SOMETIMES ALTER PERFORMANCE MEASURABLY.
 
-Cons:
-- The results are inconsistent across hardware, drivers, and games.
-- Security-impacting tweaks reduce protection.
-- Driver/registry hacks can create stutter, crashes, or update problems.
-- Service and timer tweaks are often placebo and hard to troubleshoot.
+CONS:
+- RESULTS ARE INCONSISTENT ACROSS HARDWARE, DRIVERS, AND GAMES.
+- SECURITY-IMPACTING TWEAKS REDUCE PROTECTION.
+- DRIVER/REGISTRY HACKS CAN CREATE STUTTER, CRASHES, OR UPDATE PROBLEMS.
+- SERVICE AND TIMER TWEAKS ARE OFTEN PLACEBO AND HARD TO TROUBLESHOOT.
 
-Recommendation:
-- Keep risky tweaks manual and measured. Do not bundle them into the safe all-in-one run.
+RECOMMENDATION:
+- KEEP RISKY TWEAKS MANUAL AND MEASURED.
+- DO NOT BUNDLE THEM INTO THE SAFE ALL-IN-ONE RUN.
 
-Next Steps
+NEXT STEPS
 ----------
-- Reboot if you have not already.
-- Run PostCheck from the launcher or command line.
-- Test a real game and compare frame-time smoothness/1 percent lows.
+- REBOOT IF YOU HAVE NOT ALREADY.
+- RUN POST-CHECK FROM THE LAUNCHER OR COMMAND LINE.
+- TEST A REAL GAME AND COMPARE FRAME-TIME SMOOTHNESS/1 PERCENT LOWS.
 "@
 
     New-HtmlReportFromText -Title "W11 Optimiser - Run Report" -Text $reportText -OutputPath $reportPath | Out-Null
@@ -1545,17 +1554,21 @@ Next Steps
 
 function Invoke-SafeOptimize {
     $restorePointLine = if ($SkipRestorePoint) {
-        "- Skip the restore point because -SkipRestorePoint was passed"
+        "- SKIP THE RESTORE POINT BECAUSE -SKIPRESTOREPOINT WAS PASSED"
     }
     else {
-        "+ Create or verify a system restore point"
+        "+ CREATE OR VERIFY A SYSTEM RESTORE POINT"
     }
     if (-not (Confirm-RunAction -Title "Confirm Safe Optimisation" -Lines @(
+        "YES WILL APPLY ONLY THE SAFE ITEMS BELOW.",
+        "NO WILL CANCEL BEFORE ANY CHANGES ARE MADE.",
+        "",
         $restorePointLine,
-        "+ Save local backups before changes",
-        "+ Tune safe AC power and gaming responsiveness settings",
-        "+ Keep Defender, Firewall, Windows Update, drivers, services, BIOS, overclocking, undervolting, and security settings untouched",
-        "+ Generate a local browser report"
+        "+ SAVE LOCAL BACKUPS BEFORE CHANGES",
+        "+ TUNE SAFE AC POWER AND GAMING RESPONSIVENESS SETTINGS",
+        "+ OPTIMISE ACTIVE PHYSICAL NETWORK ADAPTER POWER SAVING",
+        "+ KEEP DEFENDER, FIREWALL, WINDOWS UPDATE, DRIVERS, SERVICES, BIOS, OVERCLOCKING, UNDERVOLTING, HAGS, MEMORY INTEGRITY, AND STARTUP APPS UNTOUCHED",
+        "+ GENERATE A LOCAL BROWSER REPORT"
     ))) {
         return
     }
@@ -1603,7 +1616,7 @@ function Invoke-SafeOptimize {
 
         Write-Log "Safe W11 optimisation completed."
         Write-Host ""
-        Write-Host "Completed. Opening report..." -ForegroundColor Green
+        Write-Host "COMPLETED. OPENING REPORT..." -ForegroundColor Green
         if (-not [string]::IsNullOrWhiteSpace($script:LastHtmlReportPath)) {
             Open-ReportInBrowser -Path $script:LastHtmlReportPath
         }
@@ -1697,9 +1710,10 @@ function Remove-RegistryPathIfMissingBeforeRun {
 
 function Invoke-UndoLatest {
     if (-not (Confirm-RunAction -Title "Confirm Undo" -Lines @(
-        "This will restore settings from the latest saved W11 Optimiser run.",
-        "It uses local backup files from Desktop\W11 Optimiser.",
-        "If no previous safe run exists, nothing will be changed."
+        "YES WILL RESTORE SETTINGS FROM THE LATEST SAVED W11 OPTIMISER RUN.",
+        "NO WILL CANCEL BEFORE ANY CHANGES ARE MADE.",
+        "IT USES LOCAL BACKUP FILES FROM DESKTOP\W11 OPTIMISER.",
+        "IF NO PREVIOUS SAFE RUN EXISTS, NOTHING WILL BE CHANGED."
     ))) {
         return
     }
@@ -1871,7 +1885,7 @@ function Invoke-PostCheck {
 
     $postCheckText = $builder.ToString()
     New-HtmlReportFromText -Title "W11 Optimiser - Post Check" -Text $postCheckText -OutputPath $htmlPath | Out-Null
-    Write-Host "Post-check report written to: $htmlPath" -ForegroundColor Green
+    Write-Host "POST-CHECK REPORT WRITTEN TO: $htmlPath" -ForegroundColor Green
     Open-ReportInBrowser -Path $htmlPath
 }
 
