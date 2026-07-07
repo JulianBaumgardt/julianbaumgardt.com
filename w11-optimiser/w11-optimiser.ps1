@@ -1562,7 +1562,6 @@ function Invoke-SafeOptimize {
     if (-not (Confirm-RunAction -Title "Confirm Safe Optimisation" -Lines @(
         "YES WILL APPLY ONLY THE SAFE ITEMS BELOW.",
         "NO WILL CANCEL BEFORE ANY CHANGES ARE MADE.",
-        "",
         $restorePointLine,
         "+ SAVE LOCAL BACKUPS BEFORE CHANGES",
         "+ TUNE SAFE AC POWER AND GAMING RESPONSIVENESS SETTINGS",
