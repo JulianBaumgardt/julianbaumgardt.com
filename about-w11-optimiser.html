@@ -189,7 +189,7 @@
               <li><strong>Game capture overhead.</strong> Game DVR off, Game Mode stays on.</li>
               <li><strong>Visual responsiveness.</strong> A conservative effects profile, no shell surgery.</li>
               <li><strong>Storage.</strong> TRIM enabled, ReTrim pass on supported NTFS/ReFS volumes.</li>
-              <li><strong>Network power.</strong> Stops active physical adapters powering down, where supported.</li>
+              <li><strong>Network power.</strong> Stops active physical adapters powering down, where supported, including USB Wi-Fi adapters whose drivers hide the setting from the normal cmdlet.</li>
               <li><strong>Optional cleanup.</strong> Old temp/cache files from safe, rebuildable locations &mdash; skippable.</li>
         </ul>
       </section>
@@ -235,6 +235,7 @@
         <ul>
               <li><strong>Best on a machine that's been used for months</strong> &mdash; not fresh. TRIM and cache cleanup mostly no-op on a new install.</li>
               <li><strong>Smoother frame timing, not higher FPS.</strong> The power/latency changes reduce stutter; they don't raise benchmark numbers.</li>
+              <li><strong>Possible network stability/throughput improvement.</strong> Some USB Wi-Fi adapters perform better when Windows is not allowed to power them down, but this depends on the adapter, driver, router, and signal.</li>
               <li><strong>No FPS gain, ever.</strong> That's GPU driver and settings territory, deliberately untouched here.</li>
               <li><strong>Visual-effects changes are close to cosmetic</strong> on modern hardware.</li>
               <li>This is a small, correct set of fixes done safely &mdash; not a "50% faster" tool.</li>

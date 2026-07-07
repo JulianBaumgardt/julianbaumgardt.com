@@ -47,7 +47,8 @@ What safe optimisation does:
 - Applies a conservative visual responsiveness profile.
 - Ensures SSD TRIM is enabled.
 - Runs a safe SSD ReTrim maintenance pass on fixed NTFS/ReFS volumes.
-- Attempts network adapter power-saving adjustment where Windows supports it.
+- Disables physical network adapter sleep permission where Windows exposes it,
+  including a registry fallback for adapters/drivers that hide it from the cmdlet.
 - Lists startup apps for review, but does not disable them.
 - Detects AMD, NVIDIA, Intel, and Microsoft Basic Display Adapter GPUs for
   audit/recommendation purposes without using vendor registry hacks.
@@ -94,6 +95,9 @@ $PowerGuids = @{
     WirelessAdapter     = "19cbb8fa-5279-450e-9fac-8a3d5fedd0c1"
     WirelessPowerSaving = "12bbebe6-58d6-4636-95bb-3217ef867c1a"
 }
+
+$NetworkAdapterClassKeyRoot = "HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}"
+$NetworkAdapterPowerOffDisableMask = 24
 
 function Test-IsAdmin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -834,7 +838,7 @@ function Invoke-Audit {
     Add-ReportSection -Builder $builder -Title "Network Adapter Power Management"
     try {
         Get-NetAdapter | Where-Object Status -eq "Up" | Select-Object Name, InterfaceDescription, LinkSpeed, Status, MacAddress | Write-ObjectBlock -Builder $builder
-        Get-NetAdapterPowerManagement -ErrorAction Stop | Select-Object Name, AllowComputerToTurnOffDevice, WakeOnMagicPacket, WakeOnPattern, DeviceSleepOnDisconnect | Write-ObjectBlock -Builder $builder
+        Get-NetworkAdapterPowerState | Write-ObjectBlock -Builder $builder
     }
     catch {
         [void] $builder.AppendLine("Network adapter power query failed: $($_.Exception.Message)")
@@ -899,7 +903,7 @@ function Invoke-Preview {
     $trimStatus = try { (fsutil behavior query DisableDeleteNotify | Out-String).Trim() } catch { "Unavailable: $($_.Exception.Message)" }
     Add-PreviewItem -Builder $builder -Area "TRIM DisableDeleteNotify" -Current $trimStatus -Planned "Set DisableDeleteNotify to 0" -Notes "Enables TRIM for supported filesystems."
     Add-PreviewItem -Builder $builder -Area "SSD ReTrim maintenance" -Current "Not changed during preview" -Planned "Run ReTrim on fixed NTFS/ReFS drive-letter volumes" -Notes ""
-    Add-PreviewItem -Builder $builder -Area "Network adapter power saving" -Current "See Physical Network Adapters below" -Planned "Disable 'Allow computer to turn off this device' where supported on active physical adapters" -Notes "Virtual VPN/Hyper-V-style adapters are not targeted."
+    Add-PreviewItem -Builder $builder -Area "Network adapter power saving" -Current "See Physical Network Adapters below" -Planned "Disable 'Allow computer to turn off this device' where supported on active physical adapters" -Notes "Can improve stability/throughput on some USB Wi-Fi adapters; virtual VPN/Hyper-V-style adapters are not targeted."
     Add-PreviewItem -Builder $builder -Area "Temp/cache cleanup" -Current "Not changed during preview" -Planned "Skip cleanup when -SkipTempCleanup is used; otherwise remove old temp files and rebuildable GPU shader caches" -Notes "Launcher recommended path skips cleanup."
 
     Add-ReportSection -Builder $builder -Title "Current Power Details"
@@ -911,9 +915,8 @@ function Invoke-Preview {
 
     Add-ReportSection -Builder $builder -Title "Physical Network Adapters"
     try {
-        Get-NetAdapter -Physical -ErrorAction Stop |
+        Get-NetworkAdapterPowerState |
             Where-Object { $_.Status -eq "Up" } |
-            Select-Object Name, InterfaceDescription, LinkSpeed, Status, MacAddress |
             Write-ObjectBlock -Builder $builder
     }
     catch {
@@ -994,6 +997,182 @@ function Set-RegistryString {
     Write-Log "Set $Path\$Name = $Value"
 }
 
+function Normalize-GuidText {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+    return ([string] $Value).Trim("{}").ToUpperInvariant()
+}
+
+function Get-NetworkAdapterClassKeyPath {
+    param([Parameter(Mandatory = $true)] $Adapter)
+
+    $targetGuid = Normalize-GuidText -Value $Adapter.InterfaceGuid
+    if ([string]::IsNullOrWhiteSpace($targetGuid)) {
+        return $null
+    }
+
+    foreach ($key in Get-ChildItem -Path $NetworkAdapterClassKeyRoot -ErrorAction Stop) {
+        try {
+            $props = Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction Stop
+            if ((Normalize-GuidText -Value $props.NetCfgInstanceId) -eq $targetGuid) {
+                return $key.PSPath
+            }
+        }
+        catch {
+        }
+    }
+
+    return $null
+}
+
+function Get-PnPCapabilitiesState {
+    param([string] $ClassRegistryPath)
+
+    if ([string]::IsNullOrWhiteSpace($ClassRegistryPath)) {
+        return [pscustomobject][ordered]@{
+            Exists = $false
+            Value  = $null
+        }
+    }
+
+    try {
+        $props = Get-ItemProperty -LiteralPath $ClassRegistryPath -ErrorAction Stop
+        $property = $props.PSObject.Properties["PnPCapabilities"]
+        if ($null -eq $property) {
+            return [pscustomobject][ordered]@{
+                Exists = $false
+                Value  = $null
+            }
+        }
+
+        return [pscustomobject][ordered]@{
+            Exists = $true
+            Value  = [int] $property.Value
+        }
+    }
+    catch {
+        return [pscustomobject][ordered]@{
+            Exists = $false
+            Value  = $null
+        }
+    }
+}
+
+function Get-NetworkAdapterPowerState {
+    $adapters = Get-NetAdapter -Physical -ErrorAction Stop
+
+    foreach ($adapter in $adapters) {
+        $powerState = $null
+        try {
+            $powerState = Get-NetAdapterPowerManagement -Name $adapter.Name -ErrorAction Stop
+        }
+        catch {
+        }
+
+        $classKeyPath = $null
+        try {
+            $classKeyPath = Get-NetworkAdapterClassKeyPath -Adapter $adapter
+        }
+        catch {
+        }
+        $pnpState = Get-PnPCapabilitiesState -ClassRegistryPath $classKeyPath
+
+        [pscustomobject][ordered]@{
+            Name                           = $adapter.Name
+            InterfaceDescription           = $adapter.InterfaceDescription
+            Status                         = $adapter.Status
+            LinkSpeed                      = $adapter.LinkSpeed
+            InterfaceGuid                  = [string] $adapter.InterfaceGuid
+            AllowComputerToTurnOffDevice   = if ($powerState) { $powerState.AllowComputerToTurnOffDevice } else { "Unavailable" }
+            SelectiveSuspend               = if ($powerState) { $powerState.SelectiveSuspend } else { "Unavailable" }
+            DeviceSleepOnDisconnect        = if ($powerState) { $powerState.DeviceSleepOnDisconnect } else { "Unavailable" }
+            ClassRegistryPath              = $classKeyPath
+            PnPCapabilitiesExists          = $pnpState.Exists
+            PnPCapabilities                = $pnpState.Value
+        }
+    }
+}
+
+function Set-AdapterPowerOffPermissionDisabled {
+    param([Parameter(Mandatory = $true)] $Adapter)
+
+    $currentPower = $null
+    try {
+        $currentPower = Get-NetAdapterPowerManagement -Name $Adapter.Name -ErrorAction Stop
+        if ($currentPower.AllowComputerToTurnOffDevice -eq "Disabled") {
+            Write-Log "Adapter sleep permission already disabled for: $($Adapter.Name)"
+            return
+        }
+
+        try {
+            $currentPower | Set-CimInstance -Property @{ AllowComputerToTurnOffDevice = "Disabled" } -ErrorAction Stop
+            Start-Sleep -Milliseconds 250
+            $afterPower = Get-NetAdapterPowerManagement -Name $Adapter.Name -ErrorAction Stop
+            if ($afterPower.AllowComputerToTurnOffDevice -eq "Disabled") {
+                Write-Log "Disabled adapter sleep permission for: $($Adapter.Name)"
+                return
+            }
+            Write-Log "WARN : CIM write did not change adapter sleep permission for $($Adapter.Name); using registry fallback."
+        }
+        catch {
+            Write-Log "WARN : CIM adapter sleep write unsupported for $($Adapter.Name): $($_.Exception.Message)"
+        }
+    }
+    catch {
+        Write-Log "WARN : Could not query adapter sleep permission for $($Adapter.Name): $($_.Exception.Message)"
+    }
+
+    $classKeyPath = Get-NetworkAdapterClassKeyPath -Adapter $Adapter
+    if ([string]::IsNullOrWhiteSpace($classKeyPath)) {
+        Write-Log "WARN : Could not find network adapter registry key for $($Adapter.Name)."
+        return
+    }
+
+    $pnpState = Get-PnPCapabilitiesState -ClassRegistryPath $classKeyPath
+    $oldValue = if ($pnpState.Exists) { [int] $pnpState.Value } else { 0 }
+    $newValue = $oldValue -bor $NetworkAdapterPowerOffDisableMask
+
+    New-ItemProperty -LiteralPath $classKeyPath -Name "PnPCapabilities" -Value $newValue -PropertyType DWord -Force | Out-Null
+    Write-Log "Set adapter sleep registry fallback for $($Adapter.Name): PnPCapabilities $oldValue -> $newValue"
+    Write-Log "Adapter $($Adapter.Name) may need reconnect/restart before Windows reports the new sleep permission."
+}
+
+function Restore-NetworkAdapterPowerState {
+    param([Parameter(Mandatory = $true)] $NetworkState)
+
+    foreach ($adapter in @($NetworkState)) {
+        if ($adapter.Name -and $adapter.AllowComputerToTurnOffDevice -and $adapter.AllowComputerToTurnOffDevice -ne "Unavailable") {
+            try {
+                $currentPower = Get-NetAdapterPowerManagement -Name $adapter.Name -ErrorAction Stop
+                $currentPower | Set-CimInstance -Property @{ AllowComputerToTurnOffDevice = $adapter.AllowComputerToTurnOffDevice } -ErrorAction Stop
+                Write-Log "Restored CIM adapter sleep permission for $($adapter.Name) to $($adapter.AllowComputerToTurnOffDevice)"
+            }
+            catch {
+                Write-Log "WARN : Could not restore CIM adapter sleep permission for $($adapter.Name): $($_.Exception.Message)"
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($adapter.ClassRegistryPath)) {
+            try {
+                if ($adapter.PnPCapabilitiesExists -eq $true) {
+                    New-ItemProperty -LiteralPath $adapter.ClassRegistryPath -Name "PnPCapabilities" -Value ([int] $adapter.PnPCapabilities) -PropertyType DWord -Force | Out-Null
+                    Write-Log "Restored PnPCapabilities for $($adapter.Name) to $($adapter.PnPCapabilities)"
+                }
+                else {
+                    Remove-ItemProperty -LiteralPath $adapter.ClassRegistryPath -Name "PnPCapabilities" -ErrorAction SilentlyContinue
+                    Write-Log "Removed PnPCapabilities for $($adapter.Name) because it was absent before the run"
+                }
+            }
+            catch {
+                Write-Log "WARN : Could not restore network registry power state for $($adapter.Name): $($_.Exception.Message)"
+            }
+        }
+    }
+}
+
 function Save-State {
     $activeScheme = Get-ActivePowerSchemeGuid
     $trimText = fsutil behavior query DisableDeleteNotify | Out-String
@@ -1012,7 +1191,7 @@ function Save-State {
     Write-Log "Saved current active power scheme: $activeScheme"
 
     try {
-        Get-NetAdapterPowerManagement | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $script:BackupPath "Network Power Management.json") -Encoding UTF8
+        Get-NetworkAdapterPowerState | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $script:BackupPath "Network Power Management.json") -Encoding UTF8
         Write-Log "Saved network adapter power management state."
     }
     catch {
@@ -1199,8 +1378,7 @@ function Optimize-NetworkPowerSaving {
         $upAdapters = Get-NetAdapter -Physical -ErrorAction Stop | Where-Object { $_.Status -eq "Up" }
         foreach ($adapter in $upAdapters) {
             try {
-                Set-NetAdapterPowerManagement -Name $adapter.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction Stop
-                Write-Log "Disabled adapter sleep permission for: $($adapter.Name)"
+                Set-AdapterPowerOffPermissionDisabled -Adapter $adapter
             }
             catch {
                 Write-Log "WARN : Adapter power setting not supported for $($adapter.Name): $($_.Exception.Message)"
@@ -1258,6 +1436,19 @@ function Write-SafeOptimisationRunReport {
         $trimStatus = "Could not query TRIM: $($_.Exception.Message)"
     }
 
+    $networkPowerStatus = "(unknown)"
+    try {
+        $networkPowerStatus = Get-NetworkAdapterPowerState |
+            Where-Object { $_.Status -eq "Up" } |
+            Select-Object Name, InterfaceDescription, AllowComputerToTurnOffDevice, SelectiveSuspend, PnPCapabilities |
+            Format-Table -AutoSize |
+            Out-String -Width 220
+        $networkPowerStatus = $networkPowerStatus.Trim()
+    }
+    catch {
+        $networkPowerStatus = "Could not query network adapter sleep permission: $($_.Exception.Message)"
+    }
+
     $reportText = @"
 W11 Optimiser - Run Report
 ================================
@@ -1283,6 +1474,9 @@ Game DVR/background capture:
 TRIM:
 $trimStatus
 
+Network adapter sleep permission:
+$networkPowerStatus
+
 What Changed
 ------------
 - $restorePointSummary
@@ -1297,7 +1491,7 @@ What Changed
 - Applied a conservative visual performance profile.
 - Ensured TRIM is enabled.
 - Ran SSD ReTrim maintenance on supported fixed NTFS/ReFS volumes.
-- Attempted to disable physical network adapter sleep permission where supported.
+- Disabled physical network adapter sleep permission where supported, with a registry fallback for adapters/drivers that do not expose the setting through the cmdlet.
 - $CleanupSummary
 
 What Was Not Changed
@@ -1588,17 +1782,7 @@ function Invoke-UndoLatest {
     if (Test-Path $networkStatePath) {
         try {
             $networkState = Get-Content -Path $networkStatePath -Raw | ConvertFrom-Json
-            foreach ($adapter in @($networkState)) {
-                if ($adapter.Name -and $adapter.AllowComputerToTurnOffDevice) {
-                    try {
-                        Set-NetAdapterPowerManagement -Name $adapter.Name -AllowComputerToTurnOffDevice $adapter.AllowComputerToTurnOffDevice -ErrorAction Stop
-                        Write-Log "Restored network adapter power setting for $($adapter.Name)"
-                    }
-                    catch {
-                        Write-Log "WARN : Could not restore network adapter setting for $($adapter.Name): $($_.Exception.Message)"
-                    }
-                }
-            }
+            Restore-NetworkAdapterPowerState -NetworkState $networkState
         }
         catch {
             Write-Log "WARN : Could not restore network adapter state: $($_.Exception.Message)"
@@ -1652,6 +1836,16 @@ function Invoke-PostCheck {
 
     Add-ReportSection -Builder $builder -Title "Wireless Adapter Power Saving"
     Add-CommandToReport -Builder $builder -Command "powercfg" -Arguments @("/QUERY", "SCHEME_CURRENT", $PowerGuids.WirelessAdapter, $PowerGuids.WirelessPowerSaving)
+
+    Add-ReportSection -Builder $builder -Title "Network Adapter Sleep Permission"
+    try {
+        Get-NetworkAdapterPowerState |
+            Where-Object { $_.Status -eq "Up" } |
+            Write-ObjectBlock -Builder $builder
+    }
+    catch {
+        [void] $builder.AppendLine("Network adapter sleep permission query failed: $($_.Exception.Message)")
+    }
 
     Add-ReportSection -Builder $builder -Title "Game DVR / Game Mode"
     [pscustomobject][ordered]@{

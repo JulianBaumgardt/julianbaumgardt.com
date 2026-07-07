@@ -9,16 +9,26 @@ $scriptUrl = "$baseUrl/w11-optimiser/w11-optimiser.ps1"
 $installRoot = Join-Path $env:TEMP "W11-Optimiser"
 $scriptPath = Join-Path $installRoot "w11-optimiser.ps1"
 
+function Write-BannerLine {
+    param(
+        [Parameter(Mandatory = $true)][string] $Left,
+        [Parameter(Mandatory = $true)][string] $Right
+    )
+
+    Write-Host $Left -ForegroundColor Cyan -NoNewline
+    Write-Host $Right -ForegroundColor White
+}
+
 function Write-Title {
     Clear-Host
     Write-Host ""
     Write-Host "================================================================================================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "W     W  1   1      OOO  PPPP  TTTTT  III  M   M  III   SSS    AAA   TTTTT  III   OOO   N   N" -ForegroundColor Cyan
-    Write-Host "W     W 11  11     O   O P   P   T     I   MM MM   I   S      A   A    T     I   O   O  NN  N" -ForegroundColor Cyan
-    Write-Host "W  W  W  1   1     O   O PPPP    T     I   M M M   I    SSS   AAAAA    T     I   O   O  N N N" -ForegroundColor Cyan
-    Write-Host "W W W W  1   1     O   O P       T     I   M   M   I       S  A   A    T     I   O   O  N  NN" -ForegroundColor Cyan
-    Write-Host " W   W  111 111     OOO  P       T    III  M   M  III   SSS   A   A    T    III   OOO   N   N" -ForegroundColor Cyan
+    Write-BannerLine "W     W  1   1  " "    OOO  PPPP  TTTTT  III  M   M  III   SSS    AAA   TTTTT  III   OOO   N   N"
+    Write-BannerLine "W     W 11  11  " "   O   O P   P   T     I   MM MM   I   S      A   A    T     I   O   O  NN  N"
+    Write-BannerLine "W  W  W  1   1  " "   O   O PPPP    T     I   M M M   I    SSS   AAAAA    T     I   O   O  N N N"
+    Write-BannerLine "W W W W  1   1  " "   O   O P       T     I   M   M   I       S  A   A    T     I   O   O  N  NN"
+    Write-BannerLine " W   W  111 111 " "    OOO  P       T    III  M   M  III   SSS   A   A    T    III   OOO   N   N"
     Write-Host ""
     Write-Host "                                            by Julian Baumgardt" -ForegroundColor DarkGray
     Write-Host ""
@@ -44,6 +54,27 @@ function Invoke-W11Optimiser {
     )
 
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Mode $Mode @ExtraArgs
+    return $LASTEXITCODE
+}
+
+function Invoke-W11MenuAction {
+    param(
+        [Parameter(Mandatory = $true)][string] $Mode,
+        [string[]] $ExtraArgs = @()
+    )
+
+    $exitCode = Invoke-W11Optimiser -Mode $Mode -ExtraArgs $ExtraArgs
+    Write-Host ""
+    if ($exitCode -eq 0) {
+        Write-Host "Finished. If a report was generated, it should open in your browser." -ForegroundColor Green
+        Write-Host "Files are saved in Desktop\W11 Optimiser." -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host "Stopped or failed. No further menu action was taken." -ForegroundColor Yellow
+        Write-Host "Exit code: $exitCode" -ForegroundColor DarkGray
+    }
+    Write-Host ""
+    [void] (Read-Host "Press Enter to return to the menu")
 }
 
 Write-Title
@@ -86,32 +117,25 @@ while ($true) {
 
     switch -Regex ($choice) {
         "^x$" {
-            Invoke-W11Optimiser -Mode "SafeOptimize" -ExtraArgs @("-SkipTempCleanup")
-            return
+            Invoke-W11MenuAction -Mode "SafeOptimize" -ExtraArgs @("-SkipTempCleanup")
         }
         "^1$" {
-            Invoke-W11Optimiser -Mode "Preview"
-            return
+            Invoke-W11MenuAction -Mode "Preview"
         }
         "^2$" {
-            Invoke-W11Optimiser -Mode "Audit"
-            return
+            Invoke-W11MenuAction -Mode "Audit"
         }
         "^3$" {
-            Invoke-W11Optimiser -Mode "PostCheck"
-            return
+            Invoke-W11MenuAction -Mode "PostCheck"
         }
         "^4$" {
-            Invoke-W11Optimiser -Mode "OpenLastReport"
-            return
+            Invoke-W11MenuAction -Mode "OpenLastReport"
         }
         "^5$" {
-            Invoke-W11Optimiser -Mode "SafeOptimize"
-            return
+            Invoke-W11MenuAction -Mode "SafeOptimize"
         }
         "^6$" {
-            Invoke-W11Optimiser -Mode "UndoLatest"
-            return
+            Invoke-W11MenuAction -Mode "UndoLatest"
         }
         "^0$" {
             Write-Host "Cancelled. No changes were made." -ForegroundColor DarkGray

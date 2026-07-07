@@ -103,7 +103,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\w11-optimiser.ps1 -Mode Op
 - Essential local backup files are still created so undo remains possible; nothing is uploaded online.
 - A restore point is required by default. Use `-SkipRestorePoint` only when System Restore is unavailable and you understand that registry/state backups remain, but the extra Windows restore-point fallback will not exist.
 - Safe optimisation enables TRIM and runs a Windows SSD ReTrim maintenance pass on supported fixed NTFS/ReFS volumes.
-- Network power management is scoped to active physical adapters, not virtual VPN/Hyper-V-style adapters.
+- Network power management is scoped to active physical adapters, not virtual VPN/Hyper-V-style adapters. It disables the adapter sleep permission where Windows exposes it, including a registry fallback for adapters/drivers that do not expose the setting through `Set-NetAdapterPowerManagement`.
+- This can improve stability or throughput on some USB Wi-Fi adapters, but it is hardware/driver dependent and is not a guaranteed internet speed increase.
 - Audit and post-check reports include fixed-volume free-space warnings because low free space can affect updates, caches, and game installs.
 - On laptops, use the optimised profile while plugged in and check the OEM performance/cooling mode manually.
 - GPU-specific settings should be changed only through official AMD, NVIDIA, or Intel control panels.

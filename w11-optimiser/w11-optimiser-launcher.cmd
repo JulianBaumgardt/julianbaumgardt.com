@@ -27,6 +27,7 @@ if /I "%~1"=="help" goto help
 if /I "%~1"=="/?" goto help
 
 :menu
+set "MENU_MODE=1"
 cls
 echo.
 echo   ================================================================================================================
@@ -211,4 +212,5 @@ if "%LAST_STATUS%"=="0" (
 )
 echo.
 pause
+if defined MENU_MODE goto menu
 exit /b %LAST_STATUS%
