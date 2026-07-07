@@ -12,10 +12,17 @@ $scriptPath = Join-Path $installRoot "w11-optimiser.ps1"
 function Write-Title {
     Clear-Host
     Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host " W11 Optimiser" -ForegroundColor White
-    Write-Host " by Julian Baumgardt" -ForegroundColor DarkGray
-    Write-Host "============================================================" -ForegroundColor Cyan
+    Write-Host "================================================================================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "W     W  1   1      OOO  PPPP  TTTTT  III  M   M  III   SSS    AAA   TTTTT  III   OOO   N   N" -ForegroundColor Cyan
+    Write-Host "W     W 11  11     O   O P   P   T     I   MM MM   I   S      A   A    T     I   O   O  NN  N" -ForegroundColor Cyan
+    Write-Host "W  W  W  1   1     O   O PPPP    T     I   M M M   I    SSS   AAAAA    T     I   O   O  N N N" -ForegroundColor Cyan
+    Write-Host "W W W W  1   1     O   O P       T     I   M   M   I       S  A   A    T     I   O   O  N  NN" -ForegroundColor Cyan
+    Write-Host " W   W  111 111     OOO  P       T    III  M   M  III   SSS   A   A    T    III   OOO   N   N" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "                                            by Julian Baumgardt" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "================================================================================================================" -ForegroundColor Cyan
     Write-Host ""
 }
 

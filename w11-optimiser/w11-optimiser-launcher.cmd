@@ -29,17 +29,17 @@ if /I "%~1"=="/?" goto help
 :menu
 cls
 echo.
-echo   ============================================================
+echo   ================================================================================================================
 echo.
-echo   W     W    1    1       OOO   PPPP   TTTTT  III  M   M  III   SSS   EEEEE  RRRR
-echo   W     W   11   11      O   O  P   P    T     I   MM MM   I   S      E      R   R
-echo   W  W  W    1    1      O   O  PPPP     T     I   M M M   I    SSS   EEEE   RRRR
-echo   W W W W    1    1      O   O  P        T     I   M   M   I       S  E      R  R
-echo    W   W    111  111      OOO   P        T    III  M   M  III  SSS    EEEEE  R   R
+echo   W     W  1   1      OOO  PPPP  TTTTT  III  M   M  III   SSS    AAA   TTTTT  III   OOO   N   N
+echo   W     W 11  11     O   O P   P   T     I   MM MM   I   S      A   A    T     I   O   O  NN  N
+echo   W  W  W  1   1     O   O PPPP    T     I   M M M   I    SSS   AAAAA    T     I   O   O  N N N
+echo   W W W W  1   1     O   O P       T     I   M   M   I       S  A   A    T     I   O   O  N  NN
+echo    W   W  111 111     OOO  P       T    III  M   M  III   SSS   A   A    T    III   OOO   N   N
 echo.
-echo                            by Julian Baumgardt
+echo                                               by Julian Baumgardt
 echo.
-echo   ============================================================
+echo   ================================================================================================================
 echo.
 echo   Recommended
 echo     X  Apply all safe optimisations ^(recommended^)
