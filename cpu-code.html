@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="CPU Benchmark source code files">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>CPU Benchmark / Code</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: #000;
+        color: #f4f4f4;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      main {
+        width: min(1040px, 100%);
+        margin: 0 auto;
+        padding: clamp(22px, 5vw, 56px);
+      }
+
+      nav {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: clamp(44px, 8vw, 86px);
+      }
+
+      a {
+        color: #aaa;
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:focus-visible {
+        color: #fff;
+        outline: none;
+      }
+
+      h1 {
+        margin: 0 0 22px;
+        overflow-wrap: normal;
+        font-size: clamp(2rem, 6.4vw, 4.6rem);
+        line-height: 0.98;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+
+      .summary {
+        max-width: 760px;
+        margin: 0 0 clamp(42px, 8vw, 72px);
+        color: #aaa;
+        font-size: clamp(1rem, 2.2vw, 1.28rem);
+        line-height: 1.65;
+      }
+
+      .code-list {
+        display: grid;
+        gap: 18px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .code-list a {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 22px;
+        align-items: center;
+        min-height: 92px;
+        padding: 22px 0;
+      }
+
+      .file-name {
+        display: block;
+        color: #f4f4f4;
+        font-size: clamp(1.25rem, 3.2vw, 2rem);
+        line-height: 1.15;
+      }
+
+      .file-note {
+        display: block;
+        margin-top: 8px;
+        color: #777;
+        font-size: clamp(0.88rem, 1.7vw, 1rem);
+        line-height: 1.5;
+      }
+
+      .open {
+        color: #777;
+        font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+      }
+
+      @media (max-width: 640px) {
+        nav,
+        .code-list a {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          white-space: normal;
+        }
+
+        .open {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Page">
+        <a href="cpu-benchmark.html">Back To Benchmark</a>
+        <a href="index.html#projects">Back To Projects</a>
+      </nav>
+
+      <h1>CPU Benchmark Code</h1>
+      <p class="summary">Choose a CPU Benchmark file to view.</p>
+
+      <ul class="code-list" aria-label="CPU Benchmark source files">
+        <li>
+          <a href="code-viewer.html?file=cpu-benchmark.html">
+            <span>
+              <span class="file-name">cpu-benchmark.html</span>
+              <span class="file-note">Benchmark interface and embedded fallback worker source.</span>
+            </span>
+            <span class="open">-&gt;</span>
+          </a>
+        </li>
+        <li>
+          <a href="code-viewer.html?file=cpu-benchmark.js">
+            <span>
+              <span class="file-name">cpu-benchmark.js</span>
+              <span class="file-note">Main controller, scoring, worker setup, and UI state.</span>
+            </span>
+            <span class="open">-&gt;</span>
+          </a>
+        </li>
+        <li>
+          <a href="code-viewer.html?file=cpu-worker.js">
+            <span>
+              <span class="file-name">cpu-worker.js</span>
+              <span class="file-note">Web Worker and WebAssembly benchmark kernel.</span>
+            </span>
+            <span class="open">-&gt;</span>
+          </a>
+        </li>
+        <li>
+          <a href="code-viewer.html?file=cpu-benchmark-test.js">
+            <span>
+              <span class="file-name">cpu-benchmark-test.js</span>
+              <span class="file-note">Node tests for scoring noise and fallback consistency.</span>
+            </span>
+            <span class="open">-&gt;</span>
+          </a>
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>
