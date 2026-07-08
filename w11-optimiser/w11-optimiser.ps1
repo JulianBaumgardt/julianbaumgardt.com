@@ -318,19 +318,19 @@ function Confirm-RunAction {
     }
 
     Write-Host ""
-    Write-Host ("=== {0} ===" -f $Title.ToUpperInvariant()) -ForegroundColor Cyan
+    Write-Host ("=== {0} ===" -f $Title) -ForegroundColor Cyan
     Write-Host ""
     foreach ($line in $Lines) {
         Write-Host ("  {0}" -f $line)
     }
     Write-Host ""
 
-    $answer = Read-Host "CONTINUE? (Y/N)"
+    $answer = Read-Host "Continue? (Y/N)"
     if ($answer -match "^(?i:y(?:es)?)$") {
         return $true
     }
 
-    Write-ConsoleStatus -Tag "CANCEL" -Message "CANCELLED. NO CHANGES WERE MADE." -Color DarkGray
+    Write-ConsoleStatus -Tag "CANCEL" -Message "Cancelled. No changes were made." -Color DarkGray
     return $false
 }
 
@@ -551,7 +551,7 @@ function Invoke-OpenLastReport {
         exit 1
     }
 
-    Write-Host "OPENING LATEST REPORT: $($latestReport.FullName)" -ForegroundColor Green
+    Write-Host "Opening latest report: $($latestReport.FullName)" -ForegroundColor Green
     Open-ReportInBrowser -Path $latestReport.FullName
 }
 
@@ -855,7 +855,7 @@ function Invoke-Audit {
     [void] $builder.AppendLine("- Laptop/battery systems: use these optimizations while plugged in; check OEM performance mode and cooling profile manually.")
 
     New-HtmlReportFromText -Title "W11 Optimiser - Audit" -Text $builder.ToString() -OutputPath $reportPath | Out-Null
-    Write-Host "AUDIT REPORT WRITTEN TO: $reportPath" -ForegroundColor Green
+    Write-Host "Audit report written to: $reportPath" -ForegroundColor Green
     Open-ReportInBrowser -Path $reportPath
 }
 
@@ -929,7 +929,7 @@ function Invoke-Preview {
     [void] $builder.AppendLine("- Preview does not change power plans, Game DVR, visual settings, TRIM, network adapters, temp files, Defender, Firewall, Windows Update, drivers, services, BIOS, HAGS, overclocking, undervolting, or startup apps.")
 
     New-HtmlReportFromText -Title "W11 Optimiser - Preview" -Text $builder.ToString() -OutputPath $reportPath | Out-Null
-    Write-Host "PREVIEW REPORT WRITTEN TO: $reportPath" -ForegroundColor Green
+    Write-Host "Preview report written to: $reportPath" -ForegroundColor Green
     Open-ReportInBrowser -Path $reportPath
 }
 
@@ -1554,20 +1554,20 @@ NEXT STEPS
 
 function Invoke-SafeOptimize {
     $restorePointLine = if ($SkipRestorePoint) {
-        "- SKIP THE RESTORE POINT BECAUSE -SKIPRESTOREPOINT WAS PASSED"
+        "- Skip the restore point because -SkipRestorePoint was passed"
     }
     else {
-        "+ CREATE OR VERIFY A SYSTEM RESTORE POINT"
+        "+ Create or verify a system restore point"
     }
     if (-not (Confirm-RunAction -Title "Confirm Safe Optimisation" -Lines @(
-        "YES WILL APPLY ONLY THE SAFE ITEMS BELOW.",
-        "NO WILL CANCEL BEFORE ANY CHANGES ARE MADE.",
+        "Yes will apply only the safe items below.",
+        "No will cancel before any changes are made.",
         $restorePointLine,
-        "+ SAVE LOCAL BACKUPS BEFORE CHANGES",
-        "+ TUNE SAFE AC POWER AND GAMING RESPONSIVENESS SETTINGS",
-        "+ OPTIMISE ACTIVE PHYSICAL NETWORK ADAPTER POWER SAVING",
-        "+ KEEP DEFENDER, FIREWALL, WINDOWS UPDATE, DRIVERS, SERVICES, BIOS, OVERCLOCKING, UNDERVOLTING, HAGS, MEMORY INTEGRITY, AND STARTUP APPS UNTOUCHED",
-        "+ GENERATE A LOCAL BROWSER REPORT"
+        "+ Save local backups before changes",
+        "+ Tune safe AC power and gaming responsiveness settings",
+        "+ Optimise active physical network adapter power saving",
+        "+ Keep Defender, Firewall, Windows Update, drivers, services, BIOS, overclocking, undervolting, HAGS, Memory Integrity, and startup apps untouched",
+        "+ Generate a local browser report"
     ))) {
         return
     }
@@ -1615,7 +1615,7 @@ function Invoke-SafeOptimize {
 
         Write-Log "Safe W11 optimisation completed."
         Write-Host ""
-        Write-Host "COMPLETED. OPENING REPORT..." -ForegroundColor Green
+        Write-Host "Completed. Opening report..." -ForegroundColor Green
         if (-not [string]::IsNullOrWhiteSpace($script:LastHtmlReportPath)) {
             Open-ReportInBrowser -Path $script:LastHtmlReportPath
         }
@@ -1709,10 +1709,10 @@ function Remove-RegistryPathIfMissingBeforeRun {
 
 function Invoke-UndoLatest {
     if (-not (Confirm-RunAction -Title "Confirm Undo" -Lines @(
-        "YES WILL RESTORE SETTINGS FROM THE LATEST SAVED W11 OPTIMISER RUN.",
-        "NO WILL CANCEL BEFORE ANY CHANGES ARE MADE.",
-        "IT USES LOCAL BACKUP FILES FROM DESKTOP\W11 OPTIMISER.",
-        "IF NO PREVIOUS SAFE RUN EXISTS, NOTHING WILL BE CHANGED."
+        "Yes will restore settings from the latest saved W11 Optimiser run.",
+        "No will cancel before any changes are made.",
+        "It uses local backup files from Desktop\W11 Optimiser.",
+        "If no previous safe run exists, nothing will be changed."
     ))) {
         return
     }
@@ -1884,7 +1884,7 @@ function Invoke-PostCheck {
 
     $postCheckText = $builder.ToString()
     New-HtmlReportFromText -Title "W11 Optimiser - Post Check" -Text $postCheckText -OutputPath $htmlPath | Out-Null
-    Write-Host "POST-CHECK REPORT WRITTEN TO: $htmlPath" -ForegroundColor Green
+    Write-Host "Post-check report written to: $htmlPath" -ForegroundColor Green
     Open-ReportInBrowser -Path $htmlPath
 }
 

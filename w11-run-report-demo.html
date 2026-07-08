@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Sanitized W11 Optimiser run report demo">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>W11 Optimiser / Run Report Demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #000000;
+        --panel: #000000;
+        --text: #ffffff;
+        --muted: #c7c7c7;
+        --border: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Segoe UI, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+
+      nav {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 32px;
+        font-family: Consolas, Cascadia Mono, monospace;
+      }
+
+      a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:focus-visible {
+        color: var(--text);
+        outline: none;
+      }
+
+      header {
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 22px;
+        padding-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 28px;
+        font-weight: 650;
+        letter-spacing: 0;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 0;
+        overflow: hidden;
+      }
+
+      pre {
+        margin: 0;
+        padding: 22px;
+        overflow-x: auto;
+        overflow-wrap: normal;
+        white-space: pre;
+        font-family: Consolas, Cascadia Mono, monospace;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Page">
+        <a href="w11-optimiser.html">Back To W11 Guide</a>
+        <a href="index.html#projects">Back To Projects</a>
+      </nav>
+
+      <header>
+        <h1>W11 Optimiser - Run Report Demo</h1>
+        <div class="meta">Sanitized example report</div>
+      </header>
+
+      <section class="panel">
+        <pre>W11 OPTIMISER - RUN REPORT
+================================
+THIS IS A SANITIZED DEMO REPORT.
+REAL REPORTS ARE GENERATED LOCALLY ON THE USER'S PC.
+
+RESULT
+------
+SAFE OPTIMISATION COMPLETED.
+
+QUICK STATUS
+------------
+POWER PLAN: ULTIMATE PERFORMANCE OR HIGH PERFORMANCE ACTIVE
+
+GAME DVR/BACKGROUND CAPTURE:
+- GameDVR_Enabled: 0
+- AppCaptureEnabled: 0
+- HistoricalCaptureEnabled: 0
+- AllowGameDVR: 0
+
+TRIM:
+NTFS DisableDeleteNotify = 0
+ReFS DisableDeleteNotify = 0
+
+NETWORK ADAPTER SLEEP PERMISSION:
+ACTIVE PHYSICAL ADAPTERS: SLEEP PERMISSION DISABLED WHERE SUPPORTED
+
+WHAT CHANGED
+------------
+[OK] RESTORE POINT: CREATED OR ACCEPTED A RECENT RESTORE POINT.
+[OK] BACKUPS: SAVED STATE AND REGISTRY BACKUPS IN THE LOCAL RUN FOLDER.
+[OK] POWER PLAN: ENABLED ULTIMATE PERFORMANCE IF AVAILABLE, OTHERWISE HIGH PERFORMANCE.
+[OK] CPU POWER: SET AC MINIMUM TO 10 PERCENT AND MAXIMUM TO 100 PERCENT.
+[OK] PCI EXPRESS: DISABLED LINK STATE POWER MANAGEMENT ON AC.
+[OK] USB POWER: DISABLED USB SELECTIVE SUSPEND ON AC.
+[OK] WI-FI POWER: SET WIRELESS ADAPTER POWER SAVING TO MAXIMUM PERFORMANCE ON AC.
+[OK] GAME DVR: DISABLED BACKGROUND CAPTURE REGISTRY SETTINGS.
+[OK] GAME MODE: KEPT WINDOWS GAME MODE ENABLED.
+[OK] VISUALS: APPLIED A CONSERVATIVE RESPONSIVENESS PROFILE.
+[OK] STORAGE: ENSURED TRIM IS ENABLED.
+[OK] STORAGE: RAN SSD RETRIM ON SUPPORTED FIXED NTFS/REFS VOLUMES.
+[OK] NETWORK: DISABLED ACTIVE PHYSICAL ADAPTER SLEEP PERMISSION WHERE SUPPORTED.
+[SKIP] TEMP/CACHE CLEANUP: SKIPPED BY RECOMMENDED MODE.
+
+WHAT WAS NOT CHANGED
+--------------------
+[NO CHANGE] STARTUP APPS: LISTED FOR REVIEW ONLY.
+[NO CHANGE] VBS/MEMORY INTEGRITY: NOT CHANGED.
+[NO CHANGE] DEFENDER/FIREWALL/WINDOWS UPDATE/MICROSOFT STORE: NOT CHANGED.
+[NO CHANGE] GPU SOFTWARE/DRIVERS/SERVICES/BIOS/HAGS/OVERCLOCKING/UNDERVOLTING: NOT CHANGED.
+[NO CHANGE] GPU VENDOR-SPECIFIC SETTINGS: NOT CHANGED.
+
+WARNINGS
+--------
+NONE
+
+ERRORS
+------
+NONE
+
+REPORT NOTES
+------------
+THIS PAGE OPENS FROM A LOCAL FILE. NOTHING IS UPLOADED ONLINE.
+ESSENTIAL LOCAL BACKUPS ARE SAVED IN THE RUN FOLDER SO UNDO REMAINS POSSIBLE.
+
+RISKIER TWEAKS
+--------------
+PROS:
+- SOME CAN HELP IN VERY SPECIFIC SYSTEMS OR GAMES.
+- STARTUP CLEANUP CAN MAKE LOGIN LIGHTER.
+- HAGS OR VBS CHANGES CAN SOMETIMES ALTER PERFORMANCE MEASURABLY.
+
+CONS:
+- RESULTS ARE INCONSISTENT ACROSS HARDWARE, DRIVERS, AND GAMES.
+- SECURITY-IMPACTING TWEAKS REDUCE PROTECTION.
+- DRIVER/REGISTRY HACKS CAN CREATE STUTTER, CRASHES, OR UPDATE PROBLEMS.
+- SERVICE AND TIMER TWEAKS ARE OFTEN PLACEBO AND HARD TO TROUBLESHOOT.
+
+RECOMMENDATION:
+- KEEP RISKY TWEAKS MANUAL AND MEASURED.
+- DO NOT BUNDLE THEM INTO THE SAFE ALL-IN-ONE RUN.
+
+NEXT STEPS
+----------
+- REBOOT IF YOU HAVE NOT ALREADY.
+- RUN POST-CHECK FROM THE LAUNCHER OR COMMAND LINE.
+- TEST A REAL GAME AND COMPARE FRAME-TIME SMOOTHNESS/1 PERCENT LOWS.</pre>
+      </section>
+    </main>
+  </body>
+</html>

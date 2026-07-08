@@ -10,30 +10,20 @@ $installRoot = Join-Path $env:TEMP "W11-Optimiser"
 $scriptPath = Join-Path $installRoot "w11-optimiser.ps1"
 $script:W11LastExitCode = 0
 
-function Write-BannerLine {
-    param(
-        [Parameter(Mandatory = $true)][string] $Left,
-        [Parameter(Mandatory = $true)][string] $Right
-    )
-
-    Write-Host $Left -ForegroundColor Cyan -NoNewline
-    Write-Host $Right -ForegroundColor White
-}
-
 function Write-Title {
     Clear-Host
     Write-Host ""
-    Write-Host "================================================================================================================" -ForegroundColor Cyan
+    Write-Host "==========================================================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-BannerLine "W     W  1   1  " "    OOO  PPPP  TTTTT  III  M   M  III   SSS    AAA   TTTTT  III   OOO   N   N"
-    Write-BannerLine "W     W 11  11  " "   O   O P   P   T     I   MM MM   I   S      A   A    T     I   O   O  NN  N"
-    Write-BannerLine "W  W  W  1   1  " "   O   O PPPP    T     I   M M M   I    SSS   AAAAA    T     I   O   O  N N N"
-    Write-BannerLine "W W W W  1   1  " "   O   O P       T     I   M   M   I       S  A   A    T     I   O   O  N  NN"
-    Write-BannerLine " W   W  111 111 " "    OOO  P       T    III  M   M  III   SSS   A   A    T    III   OOO   N   N"
+    Write-Host "█   █   █     █       ███  ████  █████ ███ █   █ ███  ████ █████ ████  " -ForegroundColor White
+    Write-Host "█   █  ██    ██      █   █ █   █   █    █  ██ ██  █  █     █     █   █ " -ForegroundColor White
+    Write-Host "█ █ █   █     █      █   █ ████    █    █  █ █ █  █   ███  ████  ████  " -ForegroundColor White
+    Write-Host "██ ██   █     █      █   █ █       █    █  █   █  █      █ █     █  █  " -ForegroundColor White
+    Write-Host "█   █  ███   ███      ███  █       █   ███ █   █ ███ ████  █████ █   █ " -ForegroundColor White
     Write-Host ""
-    Write-Host "                                            by Julian Baumgardt" -ForegroundColor DarkGray
+    Write-Host "                              by Julian Baumgardt" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "================================================================================================================" -ForegroundColor Cyan
+    Write-Host "==========================================================================" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -73,22 +63,22 @@ function Invoke-W11MenuAction {
     $exitCode = $script:W11LastExitCode
     Write-Host ""
     if ($exitCode -eq 0) {
-        Write-Host "DONE. IF A REPORT WAS GENERATED, IT SHOULD OPEN IN YOUR BROWSER." -ForegroundColor Green
-        Write-Host "FILES ARE SAVED IN DESKTOP\W11 OPTIMISER." -ForegroundColor DarkGray
+        Write-Host "Done. If a report was generated, it should open in your browser." -ForegroundColor Green
+        Write-Host "Files are saved in Desktop\W11 Optimiser." -ForegroundColor DarkGray
     }
     else {
-        Write-Host "STOPPED OR FAILED. NO FURTHER MENU ACTION WAS TAKEN." -ForegroundColor Yellow
-        Write-Host "EXIT CODE: $exitCode" -ForegroundColor DarkGray
+        Write-Host "Stopped or failed. No further menu action was taken." -ForegroundColor Yellow
+        Write-Host "Exit code: $exitCode" -ForegroundColor DarkGray
     }
     Write-Host ""
-    [void] (Read-Host "PRESS ENTER TO RETURN TO THE MENU")
+    [void] (Read-Host "Press Enter To Return To The Menu")
 }
 
 Write-Title
-Write-Host "THIS COMMAND DOWNLOADS THE LATEST W11 OPTIMISER SCRIPT FROM:" -ForegroundColor DarkGray
+Write-Host "This command downloads the latest W11 Optimiser script from:" -ForegroundColor DarkGray
 Write-Host "  $scriptUrl" -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "NO OPTIMISATION STARTS UNTIL YOU CHOOSE AN OPTION." -ForegroundColor Yellow
+Write-Host "No optimisation starts until you choose an option." -ForegroundColor Yellow
 Write-Host ""
 
 try {
@@ -103,24 +93,28 @@ catch {
 
 while ($true) {
     Write-Title
-    Write-Host "RECOMMENDED" -ForegroundColor White
-    Write-Host "  X  SAFE OPTIMISE (NO TEMP/CACHE CLEANUP)"
+    Write-Host "Recommended" -ForegroundColor White
     Write-Host ""
-    Write-Host "REPORTS" -ForegroundColor White
-    Write-Host "  1  PREVIEW"
-    Write-Host "  2  AUDIT"
-    Write-Host "  3  POST-CHECK"
-    Write-Host "  4  OPEN LAST REPORT"
+    Write-Host "  X  Safe Optimise (No Temp/Cache Cleanup)"
     Write-Host ""
-    Write-Host "MAINTENANCE" -ForegroundColor White
-    Write-Host "  5  SAFE OPTIMISE + TEMP/CACHE CLEANUP"
-    Write-Host "  6  UNDO LATEST RUN"
+    Write-Host "Reports" -ForegroundColor White
     Write-Host ""
-    Write-Host "OTHER" -ForegroundColor White
-    Write-Host "  0  EXIT"
+    Write-Host "  1  Preview"
+    Write-Host "  2  Audit"
+    Write-Host "  3  Post-Check"
+    Write-Host "  4  Open Last Report"
+    Write-Host ""
+    Write-Host "Maintenance" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  5  Safe Optimise + Temp/Cache Cleanup"
+    Write-Host "  6  Undo Latest Run"
+    Write-Host ""
+    Write-Host "Other" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  0  Exit"
     Write-Host ""
 
-    $choice = Read-Host "CHOOSE AN OPTION"
+    $choice = Read-Host "Choose An Option"
 
     switch -Regex ($choice) {
         "^x$" {
@@ -145,11 +139,11 @@ while ($true) {
             Invoke-W11MenuAction -Mode "UndoLatest"
         }
         "^0$" {
-            Write-Host "CANCELLED. NO CHANGES WERE MADE." -ForegroundColor DarkGray
+            Write-Host "Cancelled. No changes were made." -ForegroundColor DarkGray
             return
         }
         default {
-            Write-Host "PLEASE CHOOSE X OR 0-6." -ForegroundColor Yellow
+            Write-Host "Please choose X or 0-6." -ForegroundColor Yellow
             Start-Sleep -Seconds 1
         }
     }
