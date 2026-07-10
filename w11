@@ -6,9 +6,12 @@ if (-not [string]::IsNullOrWhiteSpace($env:W11_OPTIMISER_BASE_URL)) {
 }
 
 $scriptUrl = "$baseUrl/w11-optimiser/w11-optimiser.ps1"
+$manifestUrl = "$baseUrl/w11-optimiser/w11-optimiser.manifest.json"
 $installRoot = Join-Path $env:TEMP "W11-Optimiser"
 $scriptPath = Join-Path $installRoot "w11-optimiser.ps1"
+$manifestPath = Join-Path $installRoot "w11-optimiser.manifest.json"
 $script:W11LastExitCode = 0
+$script:W11Version = "unknown"
 
 function Write-Title {
     Clear-Host
@@ -22,6 +25,7 @@ function Write-Title {
     Write-Host "█   █  ███   ███      ███  █       █   ███ █   █ ███ ████  █████ █   █ " -ForegroundColor White
     Write-Host ""
     Write-Host "                              by Julian Baumgardt" -ForegroundColor DarkGray
+    Write-Host "                              version $script:W11Version" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "==========================================================================" -ForegroundColor Cyan
     Write-Host ""
@@ -29,8 +33,25 @@ function Write-Title {
 
 function Download-W11Optimiser {
     New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
-    Write-Host "DOWNLOADING LATEST W11 OPTIMISER..." -ForegroundColor Cyan
+    Write-Host "CHECKING LATEST W11 OPTIMISER RELEASE..." -ForegroundColor Cyan
+    Invoke-WebRequest -UseBasicParsing -Uri $manifestUrl -OutFile $manifestPath
+    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+
+    if ($manifest.script -ne "w11-optimiser.ps1" -or
+        [string]::IsNullOrWhiteSpace($manifest.version) -or
+        $manifest.sha256 -notmatch "^[a-fA-F0-9]{64}$") {
+        throw "The W11 Optimiser release manifest is invalid. No script was run."
+    }
+
+    $script:W11Version = $manifest.version
+    Write-Host "DOWNLOADING W11 OPTIMISER VERSION $script:W11Version..." -ForegroundColor Cyan
     Invoke-WebRequest -UseBasicParsing -Uri $scriptUrl -OutFile $scriptPath
+    $actualHash = (Get-FileHash -Path $scriptPath -Algorithm SHA256).Hash
+    if ($actualHash -ne $manifest.sha256.ToUpperInvariant()) {
+        Remove-Item -Path $scriptPath -Force -ErrorAction SilentlyContinue
+        throw "Downloaded script hash did not match the release manifest. No script was run."
+    }
+    Write-Host "SHA-256 MATCHED RELEASE MANIFEST." -ForegroundColor Green
     try {
         Unblock-File -Path $scriptPath -ErrorAction Stop
     }

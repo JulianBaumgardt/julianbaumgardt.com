@@ -15,6 +15,8 @@
   const WARMUP_ROUNDS = 1;
   const ROUND_SETTLE_MS = 80;
   const PHASE_SETTLE_MS = 350;
+  const WORKER_STARTUP_TIMEOUT_MS = 15000;
+  const WORKER_BATCH_TIMEOUT_MS = 90000;
 
   const state = {
     workers: [],
@@ -121,6 +123,17 @@
 
   function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function withTimeout(promise, timeoutMs, message) {
+    let timeoutId = null;
+    const timeout = new Promise((resolve, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    });
+
+    return Promise.race([promise, timeout]).finally(() => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    });
   }
 
   function scoreFor(iterations, wallMs) {
@@ -420,7 +433,11 @@
       worker.postMessage({ type: "init", workerIndex: index });
     }
 
-    return Promise.all(readyPromises);
+    return withTimeout(
+      Promise.all(readyPromises),
+      WORKER_STARTUP_TIMEOUT_MS,
+      "Workers did not start in time. Check that this browser allows Web Workers, then try again."
+    );
   }
 
   function waitForBarrierReady(view, count) {
@@ -468,13 +485,17 @@
     const resultsPromise = Promise.all(promises);
 
     if (barrierView) {
-      await Promise.race([
-        waitForBarrierReady(barrierView, workerCount),
-        resultsPromise.then(
-          () => undefined,
-          (error) => { throw error; }
-        )
-      ]);
+      await withTimeout(
+        Promise.race([
+          waitForBarrierReady(barrierView, workerCount),
+          resultsPromise.then(
+            () => undefined,
+            (error) => { throw error; }
+          )
+        ]),
+        WORKER_STARTUP_TIMEOUT_MS,
+        "Workers did not reach the synchronized start in time."
+      );
     }
 
     if (barrierView) {
@@ -483,7 +504,11 @@
       Atomics.notify(barrierView, 1, workerCount);
     }
 
-    const results = await resultsPromise;
+    const results = await withTimeout(
+      resultsPromise,
+      WORKER_BATCH_TIMEOUT_MS,
+      "A benchmark round took too long. The run was stopped before the page became unresponsive."
+    );
     const wallMs = performance.now() - startedAt;
 
     return {

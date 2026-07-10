@@ -80,6 +80,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ScriptVersion = "1.1.0"
 
 $PowerGuids = @{
     UltimatePerformance = "e9a42b02-d5df-448d-aa00-03f14749eb61"
@@ -344,6 +345,7 @@ function Write-LogHeader {
     $lines = @(
         $Title,
         ("=" * $Title.Length),
+        "Version: $ScriptVersion",
         "Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')",
         "Computer: $env:COMPUTERNAME",
         "User: $env:USERNAME",
@@ -598,6 +600,16 @@ function Get-ActivePowerSchemeGuid {
     throw "Could not detect active power scheme."
 }
 
+function Invoke-PowerCfgChecked {
+    param([Parameter(Mandatory = $true)][string[]] $PowerCfgArguments)
+
+    $output = & powercfg @PowerCfgArguments 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        throw "powercfg $($PowerCfgArguments -join ' ') failed: $($output.Trim())"
+    }
+    return $output
+}
+
 function Write-ObjectBlock {
     param(
         [Parameter(ValueFromPipeline = $true)] $InputObject,
@@ -722,6 +734,7 @@ function Invoke-Audit {
     $builder = [System.Text.StringBuilder]::new()
 
     [void] $builder.AppendLine("W11 Optimiser Audit")
+    [void] $builder.AppendLine("Version: $ScriptVersion")
     [void] $builder.AppendLine("Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')")
     [void] $builder.AppendLine("Computer: $env:COMPUTERNAME")
     [void] $builder.AppendLine("User: $env:USERNAME")
@@ -868,6 +881,7 @@ function Invoke-Preview {
     $gpuSummary = Get-GpuVendorSummary
 
     [void] $builder.AppendLine("W11 Optimiser Preview")
+    [void] $builder.AppendLine("Version: $ScriptVersion")
     [void] $builder.AppendLine("Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')")
     [void] $builder.AppendLine("Computer: $env:COMPUTERNAME")
     [void] $builder.AppendLine("User: $env:USERNAME")
@@ -882,8 +896,8 @@ function Invoke-Preview {
 
     $activePlan = try { Get-ActivePowerSchemeGuid } catch { "Unavailable: $($_.Exception.Message)" }
     Add-PreviewItem -Builder $builder -Area "System restore point" -Current "Not changed during preview" -Planned "Create or accept a recent W11 Optimiser restore point before changes" -Notes "Can be explicitly skipped with -SkipRestorePoint when System Restore is unavailable."
-    Add-PreviewItem -Builder $builder -Area "Backup and undo state" -Current "Not changed during preview" -Planned "Create Desktop\W11 Optimiser\Runs\Safe Run <timestamp> with State.json, registry backups, and power-plan backup" -Notes "Used by UndoLatest."
-    Add-PreviewItem -Builder $builder -Area "Active power plan" -Current $activePlan -Planned "Use Ultimate Performance if available or creatable, otherwise High Performance" -Notes "Then apply conservative AC-only processor, PCIe, USB, and wireless settings."
+    Add-PreviewItem -Builder $builder -Area "Backup and undo state" -Current "Not changed during preview" -Planned "Create Desktop\W11 Optimiser\Runs\Safe Run <timestamp> with State.json and registry backups" -Notes "Used by UndoLatest."
+    Add-PreviewItem -Builder $builder -Area "Dedicated power plan" -Current $activePlan -Planned "Create a temporary W11 Optimiser plan from Ultimate Performance when available, otherwise High Performance" -Notes "The original plan is not edited. UndoLatest switches back and removes the temporary plan."
     Add-PreviewItem -Builder $builder -Area "Processor AC minimum" -Current "See Current Power Details below" -Planned "10 percent" -Notes "Keeps the CPU responsive without pinning minimum to 100 percent."
     Add-PreviewItem -Builder $builder -Area "Processor AC maximum" -Current "See Current Power Details below" -Planned "100 percent" -Notes ""
     Add-PreviewItem -Builder $builder -Area "PCIe Link State Power Management on AC" -Current "See Current Power Details below" -Planned "Off" -Notes ""
@@ -958,15 +972,11 @@ function Export-RegistryKey {
         Write-Log "Exported $RegPath to $destination"
     }
     else {
-        [ordered]@{
-            RegistryPath = $RegPath
-            Status       = "ExportFailedBeforeOptimisation"
-            Timestamp    = Get-Date -Format "o"
-        } | ConvertTo-Json | Set-Content -Path $markerPath -Encoding UTF8
-        Write-Log "Registry key export failed, marker written: $RegPath"
-        if (-not [string]::IsNullOrWhiteSpace(($output | Out-String))) {
-            Write-Log "reg.exe export output: $(($output | Out-String).Trim())"
+        $details = ($output | Out-String).Trim()
+        if ([string]::IsNullOrWhiteSpace($details)) {
+            $details = "reg.exe exited with code $LASTEXITCODE"
         }
+        throw "Could not back up $RegPath before optimisation. No settings were changed. $details"
     }
 }
 
@@ -1185,10 +1195,11 @@ function Save-State {
     [ordered]@{
         Timestamp = Get-Date -Format "o"
         PreviousActivePowerSchemeGuid = $activeScheme
+        OptimisedPowerSchemeGuid = $null
+        OptimisedPowerSchemeName = $null
         NtfsDisableDeleteNotify = $ntfsTrimValue
     } | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $script:BackupPath "State.json") -Encoding UTF8
 
-    powercfg /export (Join-Path $script:BackupPath "Previous Active Power Plan.pow") $activeScheme | Out-Null
     Write-Log "Saved current active power scheme: $activeScheme"
 
     try {
@@ -1244,35 +1255,101 @@ function Backup-RegistryKeys {
     Export-RegistryKey -RegPath "HKCU\Control Panel\Desktop\WindowMetrics" -FileName "HKCU_WindowMetrics.reg"
 }
 
-function Enable-PerformancePowerPlan {
-    $planList = powercfg /L | Out-String
-    $targetGuid = $null
+function Save-OptimisedPowerSchemeState {
+    param(
+        [Parameter(Mandatory = $true)][string] $PowerSchemeGuid,
+        [Parameter(Mandatory = $true)][string] $PowerSchemeName
+    )
+
+    $statePath = Join-Path $script:BackupPath "State.json"
+    $state = Get-Content -Path $statePath -Raw | ConvertFrom-Json
+    $state | Add-Member -NotePropertyName "OptimisedPowerSchemeGuid" -NotePropertyValue $PowerSchemeGuid -Force
+    $state | Add-Member -NotePropertyName "OptimisedPowerSchemeName" -NotePropertyValue $PowerSchemeName -Force
+    $state | ConvertTo-Json -Depth 4 | Set-Content -Path $statePath -Encoding UTF8
+    Write-Log "Saved dedicated W11 Optimiser power plan for undo: $PowerSchemeGuid"
+}
+
+function New-OptimisedPowerScheme {
+    $planList = Invoke-PowerCfgChecked -PowerCfgArguments @("/L")
+    $sourceGuid = $null
+    $sourceName = "Ultimate Performance"
     $ultimateLine = ($planList -split "`r?`n") | Where-Object { $_ -match "\(Ultimate Performance\)" } | Select-Object -First 1
 
     if ($ultimateLine -and $ultimateLine -match "([0-9a-fA-F-]{36})") {
-        $targetGuid = $Matches[1]
-        Write-Log "Ultimate Performance already exists: $targetGuid"
+        $sourceGuid = $Matches[1]
     }
     else {
-        $duplicateOutput = powercfg /DUPLICATESCHEME $PowerGuids.UltimatePerformance 2>&1 | Out-String
-        if ($duplicateOutput -match "([0-9a-fA-F-]{36})") {
-            $targetGuid = $Matches[1]
-            Write-Log "Created Ultimate Performance plan: $targetGuid"
-        }
-        else {
-            $targetGuid = $PowerGuids.HighPerformance
-            Write-Log "Ultimate Performance could not be created. Falling back to High Performance."
-        }
+        $sourceGuid = $PowerGuids.UltimatePerformance
     }
 
-    powercfg /SETACTIVE $targetGuid | Out-Null
-    powercfg /SETACVALUEINDEX $targetGuid $PowerGuids.Processor $PowerGuids.ProcessorMin 10 | Out-Null
-    powercfg /SETACVALUEINDEX $targetGuid $PowerGuids.Processor $PowerGuids.ProcessorMax 100 | Out-Null
-    powercfg /SETACVALUEINDEX $targetGuid $PowerGuids.PciExpress $PowerGuids.PcieAspm 0 | Out-Null
-    powercfg /SETACVALUEINDEX $targetGuid $PowerGuids.Usb $PowerGuids.UsbSelectiveSuspend 0 | Out-Null
-    powercfg /SETACVALUEINDEX $targetGuid $PowerGuids.WirelessAdapter $PowerGuids.WirelessPowerSaving 0 | Out-Null
-    powercfg /SETACTIVE $targetGuid | Out-Null
-    Write-Log "Applied Ultimate/High Performance AC CPU, PCIe, USB, and wireless settings."
+    $duplicateOutput = $null
+    try {
+        $duplicateOutput = Invoke-PowerCfgChecked -PowerCfgArguments @("/DUPLICATESCHEME", $sourceGuid)
+    }
+    catch {
+        $duplicateOutput = $_.Exception.Message
+    }
+    if ($duplicateOutput -notmatch "([0-9a-fA-F-]{36})") {
+        $sourceGuid = $PowerGuids.HighPerformance
+        $sourceName = "High Performance"
+        $duplicateOutput = Invoke-PowerCfgChecked -PowerCfgArguments @("/DUPLICATESCHEME", $sourceGuid)
+    }
+
+    if ($duplicateOutput -notmatch "([0-9a-fA-F-]{36})") {
+        throw "Could not create a dedicated W11 Optimiser power plan. $($duplicateOutput.Trim())"
+    }
+
+    $targetGuid = $Matches[1]
+    $planName = "W11 Optimiser $(Get-Date -Format 'yyyy-MM-dd HHmmss')"
+    Invoke-PowerCfgChecked -PowerCfgArguments @("/CHANGENAME", $targetGuid, $planName, "Temporary $sourceName plan created by W11 Optimiser") | Out-Null
+    Write-Log "Created dedicated power plan from $sourceName: $targetGuid"
+
+    return [pscustomobject]@{
+        Guid = $targetGuid
+        Name = $planName
+    }
+}
+
+function Remove-OptimisedPowerScheme {
+    param([Parameter(Mandatory = $true)][string] $PowerSchemeGuid)
+
+    try {
+        Invoke-PowerCfgChecked -PowerCfgArguments @("/DELETE", $PowerSchemeGuid) | Out-Null
+        Write-Log "Removed dedicated W11 Optimiser power plan: $PowerSchemeGuid"
+    }
+    catch {
+        Write-Log "WARN : Could not remove dedicated W11 Optimiser power plan: $($_.Exception.Message)"
+    }
+}
+
+function Enable-PerformancePowerPlan {
+    $optimisedPlan = New-OptimisedPowerScheme
+    $targetGuid = $optimisedPlan.Guid
+    try {
+        Save-OptimisedPowerSchemeState -PowerSchemeGuid $targetGuid -PowerSchemeName $optimisedPlan.Name
+        Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACTIVE", $targetGuid) | Out-Null
+        Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACVALUEINDEX", $targetGuid, $PowerGuids.Processor, $PowerGuids.ProcessorMin, "10") | Out-Null
+        Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACVALUEINDEX", $targetGuid, $PowerGuids.Processor, $PowerGuids.ProcessorMax, "100") | Out-Null
+        Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACVALUEINDEX", $targetGuid, $PowerGuids.PciExpress, $PowerGuids.PcieAspm, "0") | Out-Null
+        Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACVALUEINDEX", $targetGuid, $PowerGuids.Usb, $PowerGuids.UsbSelectiveSuspend, "0") | Out-Null
+        Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACVALUEINDEX", $targetGuid, $PowerGuids.WirelessAdapter, $PowerGuids.WirelessPowerSaving, "0") | Out-Null
+        Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACTIVE", $targetGuid) | Out-Null
+        Write-Log "Applied AC CPU, PCIe, USB, and wireless settings to the dedicated W11 Optimiser power plan."
+    }
+    catch {
+        try {
+            $state = Get-Content -Path (Join-Path $script:BackupPath "State.json") -Raw | ConvertFrom-Json
+            if (-not [string]::IsNullOrWhiteSpace($state.PreviousActivePowerSchemeGuid)) {
+                Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACTIVE", $state.PreviousActivePowerSchemeGuid) | Out-Null
+                Write-Log "Restored the original power plan after configuration failure."
+            }
+        }
+        catch {
+            Write-Log "WARN : Could not restore the original power plan after configuration failure: $($_.Exception.Message)"
+        }
+        Remove-OptimisedPowerScheme -PowerSchemeGuid $targetGuid
+        throw
+    }
 }
 
 function Disable-GameCaptureOverhead {
@@ -1459,6 +1536,7 @@ function Write-SafeOptimisationRunReport {
     $reportText = @"
 W11 OPTIMISER - RUN REPORT
 ================================
+VERSION: $ScriptVersion
 GENERATED: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz")
 COMPUTER: $env:COMPUTERNAME
 USER: $env:USERNAME
@@ -1488,7 +1566,7 @@ WHAT CHANGED
 ------------
 $restorePointSummary
 [OK] BACKUPS: SAVED STATE AND REGISTRY BACKUPS IN THIS FOLDER.
-[OK] POWER PLAN: ENABLED ULTIMATE PERFORMANCE IF AVAILABLE, OTHERWISE HIGH PERFORMANCE.
+[OK] POWER PLAN: CREATED A DEDICATED W11 OPTIMISER POWER PLAN FOR THIS RUN.
 [OK] CPU POWER: SET AC MINIMUM TO 10 PERCENT AND MAXIMUM TO 100 PERCENT.
 [OK] PCI EXPRESS: DISABLED LINK STATE POWER MANAGEMENT ON AC.
 [OK] USB POWER: DISABLED USB SELECTIVE SUSPEND ON AC.
@@ -1682,10 +1760,11 @@ function Import-RegistryBackup {
     }
 }
 
-function Remove-RegistryPathIfMissingBeforeRun {
+function Remove-RegistryValuesIfMissingBeforeRun {
     param(
         [Parameter(Mandatory = $true)][string] $MarkerFileName,
-        [Parameter(Mandatory = $true)][string] $RegistryPath
+        [Parameter(Mandatory = $true)][string] $RegistryPath,
+        [Parameter(Mandatory = $true)][string[]] $Names
     )
 
     $markerPath = Join-Path $script:BackupPath ($MarkerFileName + ".missing.json")
@@ -1696,13 +1775,28 @@ function Remove-RegistryPathIfMissingBeforeRun {
         return
     }
 
+    try {
+        $marker = Get-Content -Path $markerPath -Raw | ConvertFrom-Json
+    }
+    catch {
+        Write-Log "WARN : Could not read missing-before-run marker $markerPath: $($_.Exception.Message)"
+        return
+    }
+
+    if ($marker.Status -ne "MissingBeforeOptimisation") {
+        Write-Log "WARN : Ignored unexpected registry marker status for $RegistryPath: $($marker.Status)"
+        return
+    }
+
     if (Test-Path $RegistryPath) {
         try {
-            Remove-Item -Path $RegistryPath -Recurse -Force -ErrorAction Stop
-            Write-Log "Removed registry path created after missing-before-run marker: $RegistryPath"
+            foreach ($name in $Names) {
+                Remove-ItemProperty -Path $RegistryPath -Name $name -ErrorAction SilentlyContinue
+                Write-Log "Removed optimiser-created registry value $RegistryPath\\$name"
+            }
         }
         catch {
-            Write-Log "WARN : Could not remove registry path $RegistryPath`: $($_.Exception.Message)"
+            Write-Log "WARN : Could not remove optimiser-created registry values from $RegistryPath`: $($_.Exception.Message)"
         }
     }
 }
@@ -1760,22 +1854,26 @@ function Invoke-UndoLatest {
     Import-RegistryBackup -FileName "HKCU_ControlPanel_Desktop.reg"
     Import-RegistryBackup -FileName "HKCU_WindowMetrics.reg"
 
-    Remove-RegistryPathIfMissingBeforeRun -MarkerFileName "HKCU_System_GameConfigStore.reg" -RegistryPath "HKCU:\System\GameConfigStore"
-    Remove-RegistryPathIfMissingBeforeRun -MarkerFileName "HKCU_Microsoft_GameBar.reg" -RegistryPath "HKCU:\Software\Microsoft\GameBar"
-    Remove-RegistryPathIfMissingBeforeRun -MarkerFileName "HKCU_GameDVR.reg" -RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR"
-    Remove-RegistryPathIfMissingBeforeRun -MarkerFileName "HKLM_Policies_GameDVR.reg" -RegistryPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"
-    Remove-RegistryPathIfMissingBeforeRun -MarkerFileName "HKCU_VisualEffects.reg" -RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects"
-    Remove-RegistryPathIfMissingBeforeRun -MarkerFileName "HKCU_ControlPanel_Desktop.reg" -RegistryPath "HKCU:\Control Panel\Desktop"
-    Remove-RegistryPathIfMissingBeforeRun -MarkerFileName "HKCU_WindowMetrics.reg" -RegistryPath "HKCU:\Control Panel\Desktop\WindowMetrics"
+    Remove-RegistryValuesIfMissingBeforeRun -MarkerFileName "HKCU_System_GameConfigStore.reg" -RegistryPath "HKCU:\System\GameConfigStore" -Names @("GameDVR_Enabled")
+    Remove-RegistryValuesIfMissingBeforeRun -MarkerFileName "HKCU_Microsoft_GameBar.reg" -RegistryPath "HKCU:\Software\Microsoft\GameBar" -Names @("AutoGameModeEnabled")
+    Remove-RegistryValuesIfMissingBeforeRun -MarkerFileName "HKCU_GameDVR.reg" -RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\GameDVR" -Names @("AppCaptureEnabled", "HistoricalCaptureEnabled")
+    Remove-RegistryValuesIfMissingBeforeRun -MarkerFileName "HKLM_Policies_GameDVR.reg" -RegistryPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Names @("AllowGameDVR")
+    Remove-RegistryValuesIfMissingBeforeRun -MarkerFileName "HKCU_VisualEffects.reg" -RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Names @("VisualFXSetting")
+    Remove-RegistryValuesIfMissingBeforeRun -MarkerFileName "HKCU_ControlPanel_Desktop.reg" -RegistryPath "HKCU:\Control Panel\Desktop" -Names @("MenuShowDelay", "DragFullWindows")
+    Remove-RegistryValuesIfMissingBeforeRun -MarkerFileName "HKCU_WindowMetrics.reg" -RegistryPath "HKCU:\Control Panel\Desktop\WindowMetrics" -Names @("MinAnimate")
 
     if ($null -ne $state -and -not [string]::IsNullOrWhiteSpace($state.PreviousActivePowerSchemeGuid)) {
         try {
-            powercfg /SETACTIVE $state.PreviousActivePowerSchemeGuid | Out-Null
+            Invoke-PowerCfgChecked -PowerCfgArguments @("/SETACTIVE", $state.PreviousActivePowerSchemeGuid) | Out-Null
             Write-Log "Restored previous active power scheme: $($state.PreviousActivePowerSchemeGuid)"
         }
         catch {
             Write-Log "WARN : Could not restore previous active power scheme: $($_.Exception.Message)"
         }
+    }
+
+    if ($null -ne $state -and -not [string]::IsNullOrWhiteSpace($state.OptimisedPowerSchemeGuid)) {
+        Remove-OptimisedPowerScheme -PowerSchemeGuid $state.OptimisedPowerSchemeGuid
     }
 
     if ($null -ne $state -and $null -ne $state.NtfsDisableDeleteNotify) {
@@ -1827,6 +1925,7 @@ function Invoke-PostCheck {
     $gpuSummary = Get-GpuVendorSummary
 
     [void] $builder.AppendLine("W11 Optimiser Post-Check")
+    [void] $builder.AppendLine("Version: $ScriptVersion")
     [void] $builder.AppendLine("Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')")
     [void] $builder.AppendLine("Computer: $env:COMPUTERNAME")
     [void] $builder.AppendLine("User: $env:USERNAME")

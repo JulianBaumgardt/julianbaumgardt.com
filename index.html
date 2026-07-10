@@ -334,7 +334,7 @@
 
       @media (max-width: 560px) {
         section {
-          padding: 24px;
+          padding: 20px;
         }
 
         .sites {
@@ -344,8 +344,8 @@
         }
 
         .sites > ul {
-          --toggle-column: 44px;
-          --tree-gap: 12px;
+          --toggle-column: 32px;
+          --tree-gap: 8px;
           --project-indent: 22px;
           --file-indent: 44px;
         }
@@ -380,10 +380,11 @@
         }
 
         .file-links a {
-          grid-template-columns: 1fr;
-          gap: 7px;
+          grid-template-columns: minmax(0, 1fr) var(--toggle-column);
+          gap: var(--tree-gap);
           min-height: 64px;
           padding: 18px 0;
+          white-space: nowrap;
         }
       }
 

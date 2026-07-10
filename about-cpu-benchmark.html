@@ -222,6 +222,7 @@
               <li><strong>Worker source reporting.</strong> The Run Details panel reports whether the benchmark used the fetched <code>cpu-worker.js</code> source or the embedded fallback copy.</li>
               <li><strong>Fallback consistency test.</strong> The test suite compares the embedded worker source inside the HTML against <code>cpu-worker.js</code> so the two copies do not silently drift apart.</li>
               <li><strong>Hardware clamp visibility.</strong> Worker count is capped at 32, and the UI notes when the browser reports more logical threads than the benchmark will use.</li>
+              <li><strong>Timeout recovery.</strong> Worker startup, synchronized starts, and long-running rounds fail with a clear message instead of leaving the page stuck.</li>
         </ul>
       </section>
 
@@ -229,10 +230,23 @@
         <h2>Known Limits</h2>
         <ul>
               <li><strong>Browser benchmarks are approximate.</strong> Browser scheduling, thermal state, power mode, other apps, and OS behavior can all affect results.</li>
-              <li><strong><code>hardwareConcurrency</code> means logical threads.</strong> On CPUs with simultaneous multithreading, scaling may flatten before the worker count reaches the reported thread count.</li>
-              <li><strong>Cross-origin isolation changes start quality.</strong> The Atomics barrier is more precise, but some hosting setups do not enable the headers required for <code>SharedArrayBuffer</code>.</li>
+              <li><strong><code>hardwareConcurrency</code> means logical threads.</strong> The browser reports the CPU threads Windows/macOS can schedule, not necessarily the number of physical cores. A CPU with six hyper-threaded performance cores and eight single-threaded efficient cores, for example, has 14 physical cores but reports 20 logical threads.</li>
+              <li><strong>Threads are not identical cores.</strong> Hyper-threaded sibling threads share parts of one physical core, and hybrid CPUs combine different kinds of cores. Scaling can flatten before the reported worker count without indicating a benchmark problem.</li>
+              <li><strong>Cross-origin isolation changes start quality.</strong> The deployed site sends the COOP and COEP headers required for the Atomics barrier. If a copied deployment removes those headers, the benchmark falls back to <code>postMessage</code> and reports that mode.</li>
               <li><strong>Short runs are noisier.</strong> Quick workloads finish faster, which makes browser wake-up and message timing a larger part of the overall measurement.</li>
               <li><strong>Scores are best compared on the same machine and browser.</strong> Different browsers may compile WebAssembly and schedule workers differently.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>What The Browser Cannot Control</h2>
+        <ul>
+              <li><strong>CPU temperature and boost behaviour.</strong> A cool CPU may boost higher than one that has been busy for a while.</li>
+              <li><strong>Power mode and battery state.</strong> Windows, macOS, and laptop firmware can limit performance to save power or reduce heat.</li>
+              <li><strong>Other work on the computer.</strong> Background apps, updates, antivirus, browser tabs, and operating-system scheduling can compete for CPU time.</li>
+              <li><strong>Browser implementation.</strong> Different browsers can compile WebAssembly and schedule Web Workers differently, even on the same computer.</li>
+              <li><strong>Hardware outside the CPU.</strong> Memory pressure, cooling, firmware, and operating-system configuration can affect a result without changing the processor itself.</li>
+              <li><strong>Fair comparison.</strong> Results are most useful when compared on the same machine, browser, power mode, and workload after closing unnecessary background work.</li>
         </ul>
       </section>
 

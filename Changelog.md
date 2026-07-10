@@ -34,3 +34,35 @@
 - Standardized W11 navigation wording with `Back To W11 Guide`.
 - Shortened and resized the W11 code page heading/summary.
 - Verified main pages and project links on localhost.
+
+## 2026-07-10
+
+### W11 Optimiser 1.1
+
+- Changed Safe Optimise to create a dedicated temporary power plan for each run.
+- Original Windows power plans are no longer edited by the optimiser.
+- Updated Undo Latest Run to restore the previous plan and remove the run-specific W11 Optimiser plan.
+- Added cleanup if power-plan configuration fails partway through.
+- Made failed registry exports stop Safe Optimise before settings can be changed.
+- Hardened undo so it removes only optimiser-created registry values, never an entire registry path.
+- Added version `1.1.0` to the PowerShell script, CMD launcher, and generated reports.
+- Added `w11-optimiser.manifest.json` with a release version and SHA-256 checksum.
+- Updated the web PowerShell bootstrapper to verify the downloaded script hash before opening the menu.
+- Added `w11-optimiser-tests.ps1` with Pester regression checks for the power-plan and registry-undo safeguards.
+- Rebuilt `w11-optimiser.zip` and verified it matches the source folder.
+- Updated the W11 README, About page, guide page, code selector, and run-report demo to explain the new behaviour.
+- Added JSON syntax highlighting and copy fallback support to the code viewer.
+- Added `.gitignore` rules for macOS metadata and temporary files.
+
+### CPU Benchmark
+
+- Added worker startup, synchronized-start, and long-round timeouts so failed worker runs show a useful error instead of hanging.
+- Added Cloudflare deployment headers for cross-origin isolation, enabling the more precise SharedArrayBuffer and Atomics start barrier.
+- Expanded the CPU Benchmark About page with browser limitations, uncontrollable external factors, and an explanation of logical threads versus physical CPU cores.
+- Added a hybrid CPU example explaining why 14 physical cores can correctly appear as 20 browser threads.
+- Verified the CPU Benchmark regression tests pass.
+
+### Verification
+
+- Verified the W11 script SHA-256 matches the published release manifest.
+- Verified the downloadable ZIP matches the W11 source folder.

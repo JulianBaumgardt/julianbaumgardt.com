@@ -228,7 +228,7 @@
       </nav>
 
       <h1>W11 Optimiser</h1>
-      <p class="summary">A safe Windows 11 optimiser with two ways to run it: one PowerShell command, or a downloadable ZIP with a double-click launcher. Nothing applies until the menu asks for confirmation.</p>
+      <p class="summary">A safe Windows 11 optimiser with two ways to run it: one PowerShell command, or a downloadable ZIP with a double-click launcher. The PowerShell method checks the downloaded script SHA-256 before opening the menu. Nothing applies until the menu asks for confirmation.</p>
 
       <section>
         <h2>PowerShell Method</h2>
@@ -268,8 +268,30 @@
         </ol>
         <figure>
           <img src="assets/w11-extracted-files.png" alt="Extracted W11 Optimiser folder showing PowerShell, CMD launcher, and README files">
-          <figcaption>The extracted ZIP contains the PowerShell script, CMD launcher, and README.</figcaption>
+          <figcaption>The extracted ZIP contains the PowerShell script, CMD launcher, README, release manifest, and regression tests.</figcaption>
         </figure>
+      </section>
+
+      <section>
+        <h2>Improvements In Version 1.1</h2>
+        <div class="grid">
+          <div>
+            <h3>Original Plan Stays Untouched</h3>
+            <p>Each safe run creates its own temporary W11 Optimiser power plan. Undo returns to the original plan and removes the temporary one.</p>
+          </div>
+          <div>
+            <h3>Backup Before Change</h3>
+            <p>If an existing registry key cannot be backed up, the run stops before it changes any settings.</p>
+          </div>
+          <div>
+            <h3>Checked Download</h3>
+            <p>The PowerShell method checks the downloaded script SHA-256 against the published release manifest before the menu opens.</p>
+          </div>
+          <div>
+            <h3>Focused Undo</h3>
+            <p>Undo restores only the values this tool changed. It does not recursively delete whole registry paths.</p>
+          </div>
+        </div>
       </section>
 
       <section>
@@ -301,6 +323,7 @@
           <a href="index.html#projects">Back To Projects</a>
         </div>
       </section>
+
     </main>
     <script>
       const copyButtons = document.querySelectorAll("[data-copy]");

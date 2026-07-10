@@ -178,13 +178,15 @@
               <li>A double-click CMD launcher &mdash; no PowerShell commands to type.</li>
               <li>Local HTML reports for every run, saved under <code>Desktop\W11 Optimiser</code>.</li>
               <li>Restore point, state save, and registry backup before anything changes.</li>
+              <li>A dedicated temporary power plan for each run, so the original plan is never edited and undo can remove the run-specific plan.</li>
+              <li>A versioned release manifest: the PowerShell bootstrapper checks the downloaded script SHA-256 before it can run.</li>
         </ul>
       </section>
 
       <section>
         <h2>What Safe Optimise Changes</h2>
         <ul>
-              <li><strong>Power plan.</strong> Ultimate Performance if available, else High Performance.</li>
+              <li><strong>Power plan.</strong> A temporary W11 Optimiser plan based on Ultimate Performance when available, otherwise High Performance. Your existing plan stays unchanged.</li>
               <li><strong>AC power settings.</strong> Processor min 10% / max 100%, PCIe ASPM off, USB selective suspend off, wireless adapter power saving off.</li>
               <li><strong>Game capture overhead.</strong> Game DVR off, Game Mode stays on.</li>
               <li><strong>Visual responsiveness.</strong> A conservative effects profile, no shell surgery.</li>
@@ -199,7 +201,7 @@
         <ul>
               <li><strong>No security downgrades.</strong> Defender, Firewall, Windows Update, Store, VBS, Memory Integrity &mdash; untouched.</li>
               <li><strong>No driver or vendor hacks.</strong> GPUs are detected for reporting only, never modified.</li>
-              <li><strong>No unstable tweaks.</strong> No services, startup apps, HAGS, BIOS/UEFI, overclocking, undervolting, or code pulled from the internet.</li>
+              <li><strong>No unstable or third-party tweaks.</strong> No services, startup apps, HAGS, BIOS/UEFI, overclocking, undervolting, or third-party code.</li>
               <li><strong>Manual stays manual.</strong> Startup apps, GPU panel settings, cooling modes, XMP/EXPO, Resizable BAR, BIOS updates are flagged for review, not changed.</li>
         </ul>
       </section>
@@ -211,7 +213,7 @@
               <li><strong>Preview.</strong> Shows current values and what SafeOptimize would change. No changes made.</li>
               <li><strong>SafeOptimize.</strong> Confirms, applies changes, backs up, reports, opens the result.</li>
               <li><strong>PostCheck.</strong> Re-reads settings after a run to confirm what actually took effect.</li>
-              <li><strong>UndoLatest.</strong> Confirms, then restores registry, power scheme, TRIM, and network settings from the latest run.</li>
+              <li><strong>UndoLatest.</strong> Confirms, then restores registry values, the original power scheme, TRIM, and network settings before removing the run-specific power plan.</li>
               <li><strong>OpenLastReport.</strong> Opens the most recent report.</li>
         </ul>
       </section>
@@ -220,6 +222,9 @@
         <h2>Safety Model</h2>
         <ul>
               <li><strong>Backup before edit.</strong> Registry and state are saved before anything changes.</li>
+              <li><strong>Backup failure stops the run.</strong> If an existing registry key cannot be exported, SafeOptimize exits before it changes settings.</li>
+              <li><strong>Property-level undo.</strong> Keys that were absent before a run only have the optimiser-created values removed; undo never recursively deletes a registry path.</li>
+              <li><strong>Dedicated power plan.</strong> SafeOptimize adjusts a run-specific plan instead of modifying an existing Windows plan.</li>
               <li><strong>Preview changes nothing.</strong> No restore point, backup, or registry/power/adapter change.</li>
               <li><strong>Confirmation required.</strong> Both the launcher and direct PowerShell path ask before SafeOptimize or UndoLatest runs.</li>
               <li><strong>Restore point by default.</strong> Required unless explicitly skipped with <code>-SkipRestorePoint</code>.</li>
@@ -227,6 +232,15 @@
               <li><strong>Optional verbose logs</strong> via <code>-VerboseLog</code> for troubleshooting.</li>
               <li><strong>Readable output.</strong> Browser reports, not buried console text.</li>
               <li><strong>Conservative by design.</strong> Riskier tweaks stay documented, manual, and outside the tool's scope.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Release Verification</h2>
+        <ul>
+              <li><strong>Visible version.</strong> The menu and generated reports show the script version so a bug report can name the exact release.</li>
+              <li><strong>Download integrity check.</strong> The bootstrapper downloads a small release manifest and checks the script SHA-256 before it opens the menu.</li>
+              <li><strong>Clear boundary.</strong> A manifest from the same website can catch corruption or an incomplete deployment, but it cannot independently protect against a compromised website. Authenticode signing is the future upgrade for that threat model.</li>
         </ul>
       </section>
 
@@ -270,6 +284,14 @@
             <div class="file-row">
               <span>w11-optimiser-readme.md</span>
               <strong>Usage guide, safety boundaries, folder layout, generated outputs, and riskier-tweak notes.</strong>
+            </div>
+            <div class="file-row">
+              <span>w11-optimiser.manifest.json</span>
+              <strong>Version and SHA-256 used by the bootstrapper to check the downloaded PowerShell script.</strong>
+            </div>
+            <div class="file-row">
+              <span>w11-optimiser-tests.ps1</span>
+              <strong>Pester regression checks for dedicated power plans and non-destructive registry undo.</strong>
             </div>
         </div>
       </section>

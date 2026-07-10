@@ -237,7 +237,9 @@
         ["w11", "Web bootstrapper for irm julianbaumgardt.com/w11 | iex."],
         ["w11-optimiser/w11-optimiser.ps1", "W11 PowerShell tool for audit, safe optimisation, post-check, reporting, and undo."],
         ["w11-optimiser/w11-optimiser-launcher.cmd", "W11 CMD launcher and command shortcuts for the optimiser."],
-        ["w11-optimiser/w11-optimiser-readme.md", "Simple run instructions, safety boundaries, modes, and generated output notes for W11 Optimiser."]
+        ["w11-optimiser/w11-optimiser-readme.md", "Simple run instructions, safety boundaries, modes, and generated output notes for W11 Optimiser."],
+        ["w11-optimiser/w11-optimiser.manifest.json", "Published version and SHA-256 checked by the W11 web bootstrapper."],
+        ["w11-optimiser/w11-optimiser-tests.ps1", "Pester regression checks for W11 Optimiser safety-critical behaviour."]
       ]);
 
       const params = new URLSearchParams(window.location.search);
@@ -470,6 +472,32 @@
         return html;
       }
 
+      function highlightJson(line) {
+        const tokenPattern = /("(?:[^"\\]|\\.)*")(\s*:)?|\b(true|false|null)\b|\b(-?\d+(?:\.\d+)?)\b|([{}\[\],:])/g;
+        let html = "";
+        let lastIndex = 0;
+
+        for (const match of line.matchAll(tokenPattern)) {
+          html += escapeHtml(line.slice(lastIndex, match.index));
+
+          if (match[1]) {
+            html += tokenSpan(match[2] ? "token-property" : "token-string", match[1]);
+            if (match[2]) html += escapeHtml(match[2]);
+          } else if (match[3]) {
+            html += tokenSpan("token-keyword", match[3]);
+          } else if (match[4]) {
+            html += tokenSpan("token-number", match[4]);
+          } else if (match[5]) {
+            html += tokenSpan("token-punctuation", match[5]);
+          }
+
+          lastIndex = match.index + match[0].length;
+        }
+
+        html += escapeHtml(line.slice(lastIndex));
+        return html;
+      }
+
       function highlightMarkdown(line) {
         if (/^#{1,6}\s/.test(line)) {
           const marker = line.match(/^#{1,6}/)[0];
@@ -494,6 +522,7 @@
         if (cleanName.endsWith(".js") || cleanName.endsWith(".mjs") || cleanName.endsWith(".cjs")) return "js";
         if (cleanName.endsWith(".ps1") || cleanName.endsWith(".psm1")) return "powershell";
         if (cleanName.endsWith(".cmd") || cleanName.endsWith(".bat")) return "batch";
+        if (cleanName.endsWith(".json")) return "json";
         if (cleanName.endsWith(".md")) return "markdown";
         return "plain";
       }
@@ -505,6 +534,7 @@
         if (language === "js") return highlightJs(line);
         if (language === "powershell") return highlightPowerShell(line);
         if (language === "batch") return highlightBatch(line);
+        if (language === "json") return highlightJson(line);
         if (language === "markdown") return highlightMarkdown(line);
         return escapeHtml(line);
       }
@@ -551,10 +581,32 @@
         }
       }
 
+      async function copySource(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.append(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+        if (!copied) throw new Error("Copy was not permitted.");
+      }
+
       copyButton.addEventListener("click", async () => {
         if (!currentSource) return;
-        await navigator.clipboard.writeText(currentSource);
-        copyButton.textContent = "Copied";
+        try {
+          await copySource(currentSource);
+          copyButton.textContent = "Copied";
+        } catch {
+          copyButton.textContent = "Copy Failed";
+        }
         window.setTimeout(() => {
           copyButton.textContent = "Copy";
         }, 1200);
