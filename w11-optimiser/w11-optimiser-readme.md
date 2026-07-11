@@ -4,7 +4,7 @@ This README belongs to the W11 Optimiser project. It covers simple run instructi
 
 W11 Optimiser is a conservative Windows 11 performance script intended to work across AMD, NVIDIA, Intel, and mixed-GPU systems.
 
-Current release: `1.1.0`
+Current release: `1.1.1`
 
 It does not remove apps, disable Defender, disable firewall, disable Windows Update, disable Microsoft Store, disable VBS/Memory Integrity, change HAGS, disable services, disable startup apps, modify BIOS/UEFI, undervolt, overclock, or run internet code.
 

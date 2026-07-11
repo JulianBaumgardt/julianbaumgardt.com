@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-07-08
+## 2026-07-08 Update 2.0
 
 - Added W11 Optimiser guide page.
 - Added PowerShell and download instructions.
@@ -15,7 +15,7 @@
 - Added robots.txt.
 - Cleaned project dropdown links.
 
-## 2026-07-08
+## 2026-07-08 Update 2.1
 
 - Added updated W11 Optimiser menu screenshot to the guide page.
 - Added a W11 Optimiser code selector page.
@@ -35,7 +35,7 @@
 - Shortened and resized the W11 code page heading/summary.
 - Verified main pages and project links on localhost.
 
-## 2026-07-10
+## 2026-07-10 Update 3.0
 
 ### W11 Optimiser 1.1
 
@@ -66,3 +66,12 @@
 
 - Verified the W11 script SHA-256 matches the published release manifest.
 - Verified the downloadable ZIP matches the W11 source folder.
+
+## 2026-07-11 Update 3.1 HotFix
+
+## W11 Optimiser 1.1.1
+
+- Fixed a PowerShell parser error that prevented the optimiser from starting.
+- Updated the release manifest and SHA-256 checksum.
+- Rebuilt the downloadable ZIP.
+- Added a regression check to prevent the error from returning.

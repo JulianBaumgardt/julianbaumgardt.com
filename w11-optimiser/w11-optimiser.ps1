@@ -80,7 +80,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptVersion = "1.1.0"
+$ScriptVersion = "1.1.1"
 
 $PowerGuids = @{
     UltimatePerformance = "e9a42b02-d5df-448d-aa00-03f14749eb61"
@@ -1302,7 +1302,7 @@ function New-OptimisedPowerScheme {
     $targetGuid = $Matches[1]
     $planName = "W11 Optimiser $(Get-Date -Format 'yyyy-MM-dd HHmmss')"
     Invoke-PowerCfgChecked -PowerCfgArguments @("/CHANGENAME", $targetGuid, $planName, "Temporary $sourceName plan created by W11 Optimiser") | Out-Null
-    Write-Log "Created dedicated power plan from $sourceName: $targetGuid"
+    Write-Log "Created dedicated power plan from ${sourceName}: $targetGuid"
 
     return [pscustomobject]@{
         Guid = $targetGuid
@@ -1779,12 +1779,12 @@ function Remove-RegistryValuesIfMissingBeforeRun {
         $marker = Get-Content -Path $markerPath -Raw | ConvertFrom-Json
     }
     catch {
-        Write-Log "WARN : Could not read missing-before-run marker $markerPath: $($_.Exception.Message)"
+        Write-Log "WARN : Could not read missing-before-run marker ${markerPath}: $($_.Exception.Message)"
         return
     }
 
     if ($marker.Status -ne "MissingBeforeOptimisation") {
-        Write-Log "WARN : Ignored unexpected registry marker status for $RegistryPath: $($marker.Status)"
+        Write-Log "WARN : Ignored unexpected registry marker status for ${RegistryPath}: $($marker.Status)"
         return
     }
 

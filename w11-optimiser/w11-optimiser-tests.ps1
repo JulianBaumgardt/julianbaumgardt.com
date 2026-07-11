@@ -26,4 +26,9 @@ Describe "W11 Optimiser safety regressions" {
         $source | Should -Match "function Remove-RegistryValuesIfMissingBeforeRun"
         $source | Should -Not -Match 'Remove-Item -Path \$RegistryPath -Recurse'
     }
+
+    It "delimits interpolated variables that are immediately followed by a colon" {
+        $unsafeVariableBeforeColon = '\$(?!(?:env|script|global|local|private):)[A-Za-z_][A-Za-z0-9_]*:'
+        $source | Should -Not -Match $unsafeVariableBeforeColon
+    }
 }
