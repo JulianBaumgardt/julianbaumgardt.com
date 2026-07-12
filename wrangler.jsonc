@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "julian-internet-quality",
+  "main": "cloudflare-worker.js",
+  "compatibility_date": "2026-07-12",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "julianbaumgardt.com/network-test/*",
+      "zone_name": "julianbaumgardt.com"
+    },
+    {
+      "pattern": "www.julianbaumgardt.com/network-test/*",
+      "zone_name": "julianbaumgardt.com"
+    }
+  ]
+}

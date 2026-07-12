@@ -12,6 +12,8 @@
   const MAX_WORKERS = 32;
   const VERIFY_ITERATIONS = 1000000;
   const VERIFY_SEED = 0xc0ffee42;
+  const EXPECTED_VERIFY_CHECKSUM = 0xe31d283a;
+  const EXPECTED_WARMUP_CHECKSUM = 0x7fc3cb45;
   const WARMUP_ROUNDS = 1;
   const ROUND_SETTLE_MS = 80;
   const PHASE_SETTLE_MS = 350;
@@ -82,7 +84,7 @@
     return (spread / center) * 100;
   }
 
-  function formatNoise(value) {
+  function formatSpread(value) {
     if (!Number.isFinite(value)) return "--";
     return `±${formatNumber(value, 1)}%`;
   }
@@ -145,30 +147,39 @@
     return results.reduce((acc, result) => (acc ^ result.checksum) >>> 0, 0);
   }
 
-  function combineVariance(...values) {
-    return Math.sqrt(values.reduce((sum, value) => sum + value * value, 0));
+  function pairedRatios(numerators, denominators) {
+    const ratios = [];
+    const count = Math.min(numerators.length, denominators.length);
+    for (let index = 0; index < count; index += 1) {
+      const numerator = numerators[index];
+      const denominator = denominators[index];
+      if (Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0) {
+        ratios.push(numerator / denominator);
+      }
+    }
+    return ratios;
   }
 
-  function getScoreNoise(single, multi, fixed) {
+  function getScoreSpread(single, multi, fixed, scalingSamples, fixedSpeedupSamples) {
     return {
-      single: single.workerVariancePercent,
-      multi: multi.workerVariancePercent,
-      scaling: combineVariance(single.workerVariancePercent, multi.workerVariancePercent),
-      fixed: fixed.workerVariancePercent,
-      fixedSpeedup: combineVariance(single.workerVariancePercent, fixed.workerVariancePercent)
+      single: single.workerDeviationPercent,
+      multi: multi.workerDeviationPercent,
+      scaling: maxDeviationPercent(scalingSamples),
+      fixed: fixed.workerDeviationPercent,
+      fixedSpeedup: maxDeviationPercent(fixedSpeedupSamples)
     };
   }
 
-  function getScoreDisplay(singleScore, multiScore, scaling, fixedSpeedup, scoreNoise) {
+  function getScoreDisplay(singleScore, multiScore, scaling, fixedSpeedup, scoreSpread) {
     return {
       singleScore: formatScore(singleScore),
       multiScore: formatScore(multiScore),
       scaleScore: `${formatNumber(scaling, 2)}x`,
       fixedSpeedupScore: `${formatNumber(fixedSpeedup, 2)}x`,
-      singleNoise: formatNoise(scoreNoise.single),
-      multiNoise: formatNoise(scoreNoise.multi),
-      scaleNoise: formatNoise(scoreNoise.scaling),
-      fixedNoise: formatNoise(scoreNoise.fixedSpeedup)
+      singleSpread: formatSpread(scoreSpread.single),
+      multiSpread: formatSpread(scoreSpread.multi),
+      scaleSpread: formatSpread(scoreSpread.scaling),
+      fixedSpread: formatSpread(scoreSpread.fixedSpeedup)
     };
   }
 
@@ -183,10 +194,10 @@
     elements.multiScore.textContent = "--";
     elements.scaleScore.textContent = "--";
     elements.fixedSpeedupScore.textContent = "--";
-    elements.singleNoise.textContent = "";
-    elements.multiNoise.textContent = "";
-    elements.scaleNoise.textContent = "";
-    elements.fixedNoise.textContent = "";
+    elements.singleSpread.textContent = "";
+    elements.multiSpread.textContent = "";
+    elements.scaleSpread.textContent = "";
+    elements.fixedSpread.textContent = "";
     setMetric("singleTime", "--");
     setMetric("multiWall", "--");
     setMetric("fixedWall", "--");
@@ -291,11 +302,11 @@
             ["Scaling", `${formatNumber(summary.scaling, 2)}x`],
             ["Efficiency", `${formatNumber(summary.efficiency * 100, 1)}%`],
             ["Fixed Speedup", `${formatNumber(summary.fixedSpeedup, 2)}x`],
-            ["Single Noise", formatNoise(summary.scoreNoise.single)],
-            ["Multi Noise", formatNoise(summary.scoreNoise.multi)],
-            ["Scaling Noise", formatNoise(summary.scoreNoise.scaling)],
-            ["Fixed Noise", formatNoise(summary.scoreNoise.fixed)],
-            ["Fixed Speedup Noise", formatNoise(summary.scoreNoise.fixedSpeedup)],
+            ["Single Spread", formatSpread(summary.scoreSpread.single)],
+            ["Multi Spread", formatSpread(summary.scoreSpread.multi)],
+            ["Scaling Spread", formatSpread(summary.scoreSpread.scaling)],
+            ["Fixed Spread", formatSpread(summary.scoreSpread.fixed)],
+            ["Fixed Speedup Spread", formatSpread(summary.scoreSpread.fixedSpeedup)],
             ["Single Wall", formatMs(summary.single.wallMs)],
             ["Multi Wall", formatMs(summary.multi.wallMs)],
             ["Fixed Wall", formatMs(summary.fixed.wallMs)],
@@ -433,24 +444,47 @@
       worker.postMessage({ type: "init", workerIndex: index });
     }
 
-    return withTimeout(
+    const readyResults = await withTimeout(
       Promise.all(readyPromises),
       WORKER_STARTUP_TIMEOUT_MS,
       "Workers did not start in time. Check that this browser allows Web Workers, then try again."
     );
+
+    for (const result of readyResults) {
+      if (result.warmupChecksum !== EXPECTED_WARMUP_CHECKSUM) {
+        throw new Error(`Worker ${result.workerIndex + 1} failed kernel warm-up verification.`);
+      }
+    }
+    return readyResults;
   }
 
-  function waitForBarrierReady(view, count) {
-    return new Promise((resolve) => {
+  function createBarrierWait(view, count) {
+    let active = true;
+    let timerId = null;
+
+    const promise = new Promise((resolve) => {
       function check() {
+        if (!active) return;
         if (Atomics.load(view, 0) >= count) {
+          active = false;
           resolve();
         } else {
-          window.setTimeout(check, 0);
+          timerId = window.setTimeout(check, 0);
         }
       }
       check();
     });
+
+    return {
+      promise,
+      cancel() {
+        active = false;
+        if (timerId !== null) {
+          window.clearTimeout(timerId);
+          timerId = null;
+        }
+      }
+    };
   }
 
   async function runWorkerBatch(workerCount, iterationsByWorker, phaseName, options) {
@@ -485,17 +519,22 @@
     const resultsPromise = Promise.all(promises);
 
     if (barrierView) {
-      await withTimeout(
-        Promise.race([
-          waitForBarrierReady(barrierView, workerCount),
-          resultsPromise.then(
-            () => undefined,
-            (error) => { throw error; }
-          )
-        ]),
-        WORKER_STARTUP_TIMEOUT_MS,
-        "Workers did not reach the synchronized start in time."
-      );
+      const barrierWait = createBarrierWait(barrierView, workerCount);
+      try {
+        await withTimeout(
+          Promise.race([
+            barrierWait.promise,
+            resultsPromise.then(
+              () => undefined,
+              (error) => { throw error; }
+            )
+          ]),
+          WORKER_STARTUP_TIMEOUT_MS,
+          "Workers did not reach the synchronized start in time."
+        );
+      } finally {
+        barrierWait.cancel();
+      }
     }
 
     if (barrierView) {
@@ -521,26 +560,7 @@
     };
   }
 
-  async function runMedianBatch(workerCount, iterationsByWorker, rounds, progressStart, progressSpan, phaseName) {
-    const runs = [];
-    const warmupRuns = [];
-    const totalRounds = rounds + WARMUP_ROUNDS;
-
-    for (let round = 0; round < totalRounds; round += 1) {
-      if (state.cancelled) throw new Error("Benchmark cancelled.");
-      const isWarmup = round < WARMUP_ROUNDS;
-      const measuredRound = round - WARMUP_ROUNDS + 1;
-      setStatus(isWarmup ? `${phaseName} Warm Up` : `${phaseName} ${measuredRound}/${rounds}`);
-      const run = await runWorkerBatch(workerCount, iterationsByWorker, phaseName);
-      if (isWarmup) {
-        warmupRuns.push(run);
-      } else {
-        runs.push(run);
-        setProgress(progressStart + progressSpan * (measuredRound / rounds));
-      }
-      await sleep(ROUND_SETTLE_MS);
-    }
-
+  function summarizePhaseRuns(warmupRuns, runs) {
     const medianWorker = median(runs.map((run) => run.workerMs));
     const medianWall = median(runs.map((run) => run.wallMs));
     const selected = runs.reduce((closest, run) => {
@@ -550,12 +570,64 @@
     return {
       wallMs: medianWall,
       workerMs: medianWorker,
-      workerVariancePercent: maxDeviationPercent(runs.map((run) => run.workerMs)),
+      workerDeviationPercent: maxDeviationPercent(runs.map((run) => run.workerMs)),
       checksum: selected.checksum,
       startMode: selected.startMode,
       warmupRuns,
       runs
     };
+  }
+
+  function getRotatingPhaseOrder(roundIndex) {
+    const phases = ["single", "fixed", "multi"];
+    const offset = roundIndex % phases.length;
+    return phases.slice(offset).concat(phases.slice(0, offset));
+  }
+
+  async function runInterleavedPhases(phases, rounds, progressStart, progressSpan) {
+    const phaseByKey = Object.fromEntries(phases.map((phase) => [phase.key, phase]));
+    const collected = Object.fromEntries(phases.map((phase) => [phase.key, {
+      warmupRuns: [],
+      runs: []
+    }]));
+
+    for (let warmup = 0; warmup < WARMUP_ROUNDS; warmup += 1) {
+      for (const phase of phases) {
+        if (state.cancelled) throw new Error("Benchmark cancelled.");
+        setStatus(`${phase.label} Warm Up`);
+        collected[phase.key].warmupRuns.push(await runWorkerBatch(
+          phase.workerCount,
+          phase.iterations,
+          phase.label
+        ));
+        await sleep(ROUND_SETTLE_MS);
+      }
+    }
+
+    await settlePhase("Measured Runs");
+    let completedRuns = 0;
+    const totalRuns = rounds * phases.length;
+
+    for (let round = 0; round < rounds; round += 1) {
+      for (const key of getRotatingPhaseOrder(round)) {
+        if (state.cancelled) throw new Error("Benchmark cancelled.");
+        const phase = phaseByKey[key];
+        setStatus(`${phase.label} ${round + 1}/${rounds}`);
+        collected[key].runs.push(await runWorkerBatch(
+          phase.workerCount,
+          phase.iterations,
+          phase.label
+        ));
+        completedRuns += 1;
+        setProgress(progressStart + progressSpan * (completedRuns / totalRuns));
+        await sleep(ROUND_SETTLE_MS);
+      }
+    }
+
+    return Object.fromEntries(phases.map((phase) => [
+      phase.key,
+      summarizePhaseRuns(collected[phase.key].warmupRuns, collected[phase.key].runs)
+    ]));
   }
 
   async function settlePhase(label) {
@@ -592,6 +664,7 @@
     const workerCount = clampWorkerCount(elements.workerInput.value);
     const workload = WORKLOADS[elements.workloadSelect.value] || WORKLOADS.standard;
     const baseIterations = workload.iterations;
+    elements.workerInput.value = String(workerCount);
 
     state.cancelled = false;
     updateControls(true);
@@ -615,18 +688,14 @@
         "Verification",
         { seeds: [VERIFY_SEED], useBarrier: false }
       );
+      if (verification.checksum !== EXPECTED_VERIFY_CHECKSUM) {
+        throw new Error(
+          `Kernel verification failed: expected 0x${EXPECTED_VERIFY_CHECKSUM.toString(16)}, ` +
+          `received 0x${verification.checksum.toString(16)}.`
+        );
+      }
       setMetric("verification", `0x${verification.checksum.toString(16).padStart(8, "0")}`);
       setProgress(0.08);
-
-      await settlePhase("Single Thread Run");
-      const single = await runMedianBatch(
-        1,
-        [baseIterations],
-        workload.rounds,
-        0.08,
-        0.25,
-        "Single Thread Run"
-      );
 
       const fixedTotalIterations = [];
       let remaining = baseIterations;
@@ -637,34 +706,55 @@
         remaining -= iterations;
       }
 
-      await settlePhase("Fixed Work Run");
-      const fixed = await runMedianBatch(
-        workerCount,
-        fixedTotalIterations,
-        workload.rounds,
-        0.33,
-        0.25,
-        "Fixed Work Multi Thread Run"
-      );
-
-      await settlePhase("Throughput Run");
       const throughputIterations = Array.from({ length: workerCount }, () => baseIterations);
-      const multi = await runMedianBatch(
-        workerCount,
-        throughputIterations,
+      const measured = await runInterleavedPhases(
+        [
+          {
+            key: "single",
+            label: "Single Thread Run",
+            workerCount: 1,
+            iterations: [baseIterations]
+          },
+          {
+            key: "fixed",
+            label: "Fixed Work Multi Thread Run",
+            workerCount,
+            iterations: fixedTotalIterations
+          },
+          {
+            key: "multi",
+            label: "Throughput Multi Thread Run",
+            workerCount,
+            iterations: throughputIterations
+          }
+        ],
         workload.rounds,
-        0.58,
-        0.38,
-        "Throughput Multi Thread Run"
+        0.08,
+        0.88
       );
+      const { single, fixed, multi } = measured;
 
       const singleScore = scoreFor(baseIterations, single.workerMs);
       const multiScore = scoreFor(baseIterations * workerCount, multi.workerMs);
-      const scaling = multiScore / singleScore;
+      const scalingSamples = pairedRatios(
+        multi.runs.map((run) => scoreFor(baseIterations * workerCount, run.workerMs)),
+        single.runs.map((run) => scoreFor(baseIterations, run.workerMs))
+      );
+      const fixedSpeedupSamples = pairedRatios(
+        single.runs.map((run) => run.workerMs),
+        fixed.runs.map((run) => run.workerMs)
+      );
+      const scaling = median(scalingSamples);
       const efficiency = scaling / workerCount;
-      const fixedSpeedup = single.workerMs / fixed.workerMs;
-      const scoreNoise = getScoreNoise(single, multi, fixed);
-      const scoreDisplay = getScoreDisplay(singleScore, multiScore, scaling, fixedSpeedup, scoreNoise);
+      const fixedSpeedup = median(fixedSpeedupSamples);
+      const scoreSpread = getScoreSpread(
+        single,
+        multi,
+        fixed,
+        scalingSamples,
+        fixedSpeedupSamples
+      );
+      const scoreDisplay = getScoreDisplay(singleScore, multiScore, scaling, fixedSpeedup, scoreSpread);
       const checksum = verification.checksum;
 
       renderScoreDisplay(scoreDisplay);
@@ -689,11 +779,11 @@
         scaling,
         efficiency,
         fixedSpeedup,
-        scoreNoise,
+        scoreSpread,
         checksum
       });
       setProgress(1);
-      setStatus("Complete");
+      setStatus(state.backgroundedDuringRun ? "Complete - Backgrounded, Rerun Recommended" : "Complete");
     } catch (error) {
       if (state.cancelled) {
         setStatus("Cancelled");
@@ -702,7 +792,7 @@
       }
     } finally {
       stopVisibilityTracking();
-      stopWorkers();
+      stopWorkers(new Error("Benchmark run ended."));
       updateControls(false);
     }
   }
@@ -712,7 +802,6 @@
     state.cancelled = true;
     setStatus("Stopping");
     stopWorkers(new Error("Benchmark cancelled."));
-    updateControls(false);
   }
 
   function init() {
@@ -726,10 +815,10 @@
     elements.multiScore = $("multi-score");
     elements.scaleScore = $("scale-score");
     elements.fixedSpeedupScore = $("fixed-speedup-score");
-    elements.singleNoise = $("single-noise");
-    elements.multiNoise = $("multi-noise");
-    elements.scaleNoise = $("scale-noise");
-    elements.fixedNoise = $("fixed-noise");
+    elements.singleSpread = $("single-spread");
+    elements.multiSpread = $("multi-spread");
+    elements.scaleSpread = $("scale-spread");
+    elements.fixedSpread = $("fixed-spread");
     elements.detailsContent = $("details-content");
     elements.metrics = {
       singleTime: $("single-time"),
@@ -755,13 +844,17 @@
 
   if (typeof window !== "undefined" && window.__CPU_BENCHMARK_EXPOSE_TESTS__) {
     window.__cpuBenchmarkTest = {
-      combineVariance,
-      formatNoise,
+      createBarrierWait,
+      expectedVerifyChecksum: EXPECTED_VERIFY_CHECKSUM,
+      expectedWarmupChecksum: EXPECTED_WARMUP_CHECKSUM,
+      formatSpread,
+      getRotatingPhaseOrder,
       getScoreDisplay,
-      getScoreNoise,
+      getScoreSpread,
       getWorkerSourceLabel: () => state.workerSource,
       getWorkerUrl,
       maxDeviationPercent,
+      pairedRatios,
       renderScoreDisplay,
       resetWorkerUrl: () => {
         state.workerBlobUrl = null;

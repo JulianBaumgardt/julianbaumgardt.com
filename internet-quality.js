@@ -1,0 +1,340 @@
+(function() {
+  "use strict";
+
+  const PROFILES = {
+    light: { label: "Light", rounds: 2, probes: 6, downloads: 1, bytesPerDownload: 4 * 1024 * 1024, estimatedMb: 8 },
+    standard: { label: "Standard", rounds: 3, probes: 8, downloads: 2, bytesPerDownload: 8 * 1024 * 1024, estimatedMb: 48 },
+    thorough: { label: "Thorough", rounds: 5, probes: 10, downloads: 2, bytesPerDownload: 12 * 1024 * 1024, estimatedMb: 120 }
+  };
+
+  const PROBE_TIMEOUT_MS = 4000;
+  const state = { running: false, cancelled: false, controllers: new Set(), backgrounded: false, visibilityHandler: null };
+  const elements = {};
+
+  function $(id) { return document.getElementById(id); }
+  function median(values) {
+    const clean = values.filter(Number.isFinite).slice().sort((a, b) => a - b);
+    if (!clean.length) return NaN;
+    const middle = Math.floor(clean.length / 2);
+    return clean.length % 2 ? clean[middle] : (clean[middle - 1] + clean[middle]) / 2;
+  }
+
+  function percentile(values, fraction) {
+    const clean = values.filter(Number.isFinite).slice().sort((a, b) => a - b);
+    if (!clean.length) return NaN;
+    const index = (clean.length - 1) * fraction;
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    if (lower === upper) return clean[lower];
+    return clean[lower] + (clean[upper] - clean[lower]) * (index - lower);
+  }
+
+  function jitter(values) {
+    if (values.length < 2) return 0;
+    const changes = [];
+    for (let i = 1; i < values.length; i += 1) changes.push(Math.abs(values[i] - values[i - 1]));
+    return median(changes);
+  }
+
+  function maxDeviationPercent(values) {
+    const center = median(values);
+    if (!Number.isFinite(center) || center <= 0) return 0;
+    return Math.max(...values.map((value) => Math.abs(value - center))) / center * 100;
+  }
+
+  function consistencyPercent(samples) {
+    const clean = samples.filter((value) => Number.isFinite(value) && value > 0);
+    if (!clean.length) return NaN;
+    const center = median(clean);
+    const low = percentile(clean, 0.1);
+    return Math.max(0, Math.min(100, low / center * 100));
+  }
+
+  function stabilityLabel(spread, loss, consistency) {
+    if (loss >= 3 || spread >= 45 || consistency < 45) return "Unstable";
+    if (loss >= 1 || spread >= 25 || consistency < 65) return "Variable";
+    if (spread >= 12 || consistency < 82) return "Good";
+    return "Excellent";
+  }
+
+  function formatMs(value, decimals) { return Number.isFinite(value) ? `${value.toFixed(decimals == null ? (value < 100 ? 1 : 0) : decimals)} ms` : "--"; }
+  function formatMbps(value) { return Number.isFinite(value) ? `${value.toFixed(value < 100 ? 1 : 0)} Mbps` : "--"; }
+  function formatPercent(value) { return Number.isFinite(value) ? `${value.toFixed(1)}%` : "--"; }
+  function endpoint(path) { return `/network-test/${path}`; }
+  function setStatus(text) { elements.status.textContent = text; }
+  function setProgress(value) { elements.progressBar.style.transform = `scaleX(${Math.max(0, Math.min(1, value))})`; }
+  function abortError() { return new DOMException("Test stopped.", "AbortError"); }
+  function ensureActive() { if (state.cancelled) throw abortError(); }
+
+  async function timedFetch(url, timeoutMs) {
+    ensureActive();
+    const controller = new AbortController();
+    state.controllers.add(controller);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const started = performance.now();
+    try {
+      const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+      if (!response.ok) throw new Error(`Endpoint returned ${response.status}.`);
+      await response.arrayBuffer();
+      return performance.now() - started;
+    } finally {
+      clearTimeout(timeout);
+      state.controllers.delete(controller);
+    }
+  }
+
+  async function runProbe() {
+    try {
+      const ms = await timedFetch(`${endpoint("ping")}?t=${Date.now()}-${Math.random()}`, PROBE_TIMEOUT_MS);
+      return { ok: true, ms };
+    } catch (error) {
+      if (state.cancelled) throw abortError();
+      return { ok: false, ms: NaN };
+    }
+  }
+
+  async function measureDns() {
+    const controller = new AbortController();
+    state.controllers.add(controller);
+    const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS * 2);
+    try {
+      const response = await fetch(`${endpoint("dns")}?t=${Date.now()}-${Math.random()}`, { cache: "no-store", signal: controller.signal });
+      if (!response.ok) throw new Error(`DNS endpoint returned ${response.status}.`);
+      const result = await response.json();
+      return Number(result.resolverMs);
+    } catch (error) {
+      if (state.cancelled) throw abortError();
+      return NaN;
+    } finally {
+      clearTimeout(timeout);
+      state.controllers.delete(controller);
+    }
+  }
+
+  async function readDownload(bytes, sampleSink) {
+    const controller = new AbortController();
+    state.controllers.add(controller);
+    const started = performance.now();
+    let received = 0;
+    let sampleBytes = 0;
+    let sampleStarted = started;
+
+    try {
+      const url = `${endpoint("download")}?bytes=${bytes}&t=${Date.now()}-${Math.random()}`;
+      const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+      if (!response.ok || !response.body) throw new Error(`Download endpoint returned ${response.status}.`);
+      const reader = response.body.getReader();
+      while (true) {
+        ensureActive();
+        const result = await reader.read();
+        if (result.done) break;
+        received += result.value.byteLength;
+        sampleBytes += result.value.byteLength;
+        const now = performance.now();
+        const elapsed = now - sampleStarted;
+        if (elapsed >= 100 || sampleBytes >= 1024 * 1024) {
+          sampleSink.push((sampleBytes * 8) / (elapsed / 1000) / 1000000);
+          sampleBytes = 0;
+          sampleStarted = now;
+        }
+      }
+      const ended = performance.now();
+      if (sampleBytes > 0 && ended > sampleStarted) sampleSink.push((sampleBytes * 8) / ((ended - sampleStarted) / 1000) / 1000000);
+      return { bytes: received, durationMs: ended - started, mbps: (received * 8) / ((ended - started) / 1000) / 1000000 };
+    } finally {
+      state.controllers.delete(controller);
+    }
+  }
+
+  async function measureUnderLoad(profile) {
+    const throughputSamples = [];
+    const downloads = Array.from({ length: profile.downloads }, () => readDownload(profile.bytesPerDownload, throughputSamples));
+    let finished = false;
+    const completion = Promise.all(downloads).finally(() => { finished = true; });
+    const loadedProbes = [];
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    while (!finished && loadedProbes.length < 24) {
+      loadedProbes.push(await runProbe());
+      if (!finished) await new Promise((resolve) => setTimeout(resolve, 80));
+    }
+    const downloadResults = await completion;
+    if (!loadedProbes.length) loadedProbes.push(await runProbe());
+    const totalBytes = downloadResults.reduce((sum, item) => sum + item.bytes, 0);
+    const wallMs = Math.max(...downloadResults.map((item) => item.durationMs));
+    return {
+      mbps: (totalBytes * 8) / (wallMs / 1000) / 1000000,
+      throughputSamples,
+      probes: loadedProbes
+    };
+  }
+
+  async function runRound(profile, index, total) {
+    setStatus(`Round ${index + 1} of ${total} · idle latency`);
+    const idleProbes = [];
+    for (let i = 0; i < profile.probes; i += 1) {
+      idleProbes.push(await runProbe());
+      setProgress((index + (i + 1) / profile.probes * 0.35) / total);
+      if (i + 1 < profile.probes) await new Promise((resolve) => setTimeout(resolve, 70));
+    }
+
+    setStatus(`Round ${index + 1} of ${total} · resolver`);
+    const dnsMs = await measureDns();
+    setProgress((index + 0.43) / total);
+    setStatus(`Round ${index + 1} of ${total} · download under load`);
+    const loaded = await measureUnderLoad(profile);
+    setProgress((index + 1) / total);
+
+    const idleSuccess = idleProbes.filter((item) => item.ok).map((item) => item.ms);
+    const loadedSuccess = loaded.probes.filter((item) => item.ok).map((item) => item.ms);
+    const attempts = idleProbes.length + loaded.probes.length;
+    const failures = idleProbes.concat(loaded.probes).filter((item) => !item.ok).length;
+    return {
+      idleMs: median(idleSuccess),
+      jitterMs: jitter(idleSuccess),
+      loadedMs: median(loadedSuccess),
+      downloadMbps: loaded.mbps,
+      consistency: consistencyPercent(loaded.throughputSamples),
+      dnsMs,
+      attempts,
+      failures
+    };
+  }
+
+  function aggregateRounds(rounds) {
+    const idleValues = rounds.map((round) => round.idleMs);
+    const loadedValues = rounds.map((round) => round.loadedMs);
+    const downloadValues = rounds.map((round) => round.downloadMbps);
+    const jitterValues = rounds.map((round) => round.jitterMs);
+    const consistencyValues = rounds.map((round) => round.consistency);
+    const attempts = rounds.reduce((sum, round) => sum + round.attempts, 0);
+    const failures = rounds.reduce((sum, round) => sum + round.failures, 0);
+    const result = {
+      idleMs: median(idleValues),
+      loadedMs: median(loadedValues),
+      downloadMbps: median(downloadValues),
+      jitterMs: median(jitterValues),
+      consistency: median(consistencyValues),
+      dnsMs: median(rounds.map((round) => round.dnsMs)),
+      lossPercent: attempts ? failures / attempts * 100 : 0,
+      idleSpread: maxDeviationPercent(idleValues),
+      loadedSpread: maxDeviationPercent(loadedValues),
+      downloadSpread: maxDeviationPercent(downloadValues),
+      rounds: rounds.length
+    };
+    result.penaltyMs = result.loadedMs - result.idleMs;
+    result.stability = stabilityLabel(Math.max(result.idleSpread, result.downloadSpread), result.lossPercent, result.consistency);
+    return result;
+  }
+
+  function assess(result) {
+    const poorRealtime = result.lossPercent >= 3 || result.jitterMs >= 40 || result.loadedMs >= 350;
+    const video = poorRealtime ? ["Poor", "Drop-outs or delays are likely under load."]
+      : result.loadedMs < 180 && result.jitterMs < 20 && result.downloadMbps >= 8 ? ["Excellent", "Strong headroom for stable HD group calls."]
+      : ["Good", "Suitable for calls, with some sensitivity to competing traffic."];
+    const gaming = result.lossPercent >= 2 || result.idleMs >= 100 || result.jitterMs >= 30 ? ["Poor", "Latency variation or failed probes may be noticeable."]
+      : result.idleMs < 35 && result.jitterMs < 10 && result.loadedMs < 100 ? ["Excellent", "Responsive for fast online games, even with traffic."]
+      : result.idleMs < 70 && result.jitterMs < 20 ? ["Good", "Suitable for most games; loaded traffic may add delay."]
+      : ["Limited", "Fine for casual play, less ideal for reaction-sensitive games."];
+    const streaming = result.downloadMbps < 8 || result.consistency < 40 ? ["Limited", "Lower quality or buffering is possible."]
+      : result.downloadMbps >= 35 && result.consistency >= 70 ? ["Excellent", "Comfortable headroom for 4K streaming."]
+      : ["Good", "Suitable for HD and likely 4K on one screen."];
+    const downloads = result.downloadMbps >= 200 ? ["Excellent", "Large files should complete quickly."]
+      : result.downloadMbps >= 50 ? ["Good", "Healthy throughput for large files."]
+      : result.downloadMbps >= 15 ? ["Limited", "Large files will take time but remain practical."]
+      : ["Poor", "Large transfers will be slow."];
+    return { video, gaming, streaming, downloads };
+  }
+
+  function render(result, rounds) {
+    elements.latencyScore.textContent = formatMs(result.idleMs);
+    elements.downloadScore.textContent = formatMbps(result.downloadMbps);
+    elements.loadedScore.textContent = formatMs(result.loadedMs);
+    elements.stabilityScore.textContent = result.stability;
+    elements.latencySpread.textContent = `±${result.idleSpread.toFixed(1)}% across rounds`;
+    elements.downloadSpread.textContent = `±${result.downloadSpread.toFixed(1)}% across rounds`;
+    elements.loadedSpread.textContent = `±${result.loadedSpread.toFixed(1)}% across rounds`;
+    elements.stabilityNote.textContent = `${formatPercent(result.consistency)} download consistency`;
+    elements.jitterMetric.textContent = formatMs(result.jitterMs);
+    elements.lossMetric.textContent = formatPercent(result.lossPercent);
+    elements.consistencyMetric.textContent = formatPercent(result.consistency);
+    elements.penaltyMetric.textContent = `+${formatMs(Math.max(0, result.penaltyMs))}`;
+    elements.dnsMetric.textContent = formatMs(result.dnsMs);
+    elements.roundsMetric.textContent = String(result.rounds);
+
+    const ratings = assess(result);
+    for (const key of ["video", "gaming", "streaming", "downloads"]) {
+      elements[`${key}Rating`].textContent = ratings[key][0];
+      elements[`${key}Note`].textContent = ratings[key][1];
+    }
+
+    elements.detailsContent.innerHTML = `<table class="round-table"><thead><tr><th>Round</th><th>Idle</th><th>Jitter</th><th>Download</th><th>Loaded</th><th>Consistency</th><th>DNS</th><th>Failed probes</th></tr></thead><tbody>${rounds.map((round, index) => `<tr><td>${index + 1}</td><td>${formatMs(round.idleMs)}</td><td>${formatMs(round.jitterMs)}</td><td>${formatMbps(round.downloadMbps)}</td><td>${formatMs(round.loadedMs)}</td><td>${formatPercent(round.consistency)}</td><td>${formatMs(round.dnsMs)}</td><td>${round.failures} / ${round.attempts}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  function updateProfileNote() {
+    const profile = PROFILES[elements.profile.value];
+    elements.dataNote.textContent = `${profile.label} uses up to approximately ${profile.estimatedMb} MB over ${profile.rounds} rounds.`;
+  }
+
+  function updateControls(running) {
+    elements.run.disabled = running;
+    elements.stop.disabled = !running;
+    elements.profile.disabled = running;
+  }
+
+  function stopTest() {
+    if (!state.running) return;
+    state.cancelled = true;
+    for (const controller of state.controllers) controller.abort();
+    setStatus("Stopping");
+  }
+
+  async function runTest() {
+    if (state.running) return;
+    state.running = true;
+    state.cancelled = false;
+    state.backgrounded = false;
+    updateControls(true);
+    setProgress(0);
+    const profile = PROFILES[elements.profile.value];
+    const rounds = [];
+    state.visibilityHandler = () => { if (document.hidden) state.backgrounded = true; };
+    document.addEventListener("visibilitychange", state.visibilityHandler);
+
+    try {
+      await timedFetch(`${endpoint("ping")}?warmup=${Date.now()}`, PROBE_TIMEOUT_MS);
+      for (let index = 0; index < profile.rounds; index += 1) rounds.push(await runRound(profile, index, profile.rounds));
+      const result = aggregateRounds(rounds);
+      render(result, rounds);
+      setStatus(state.backgrounded ? "Complete · tab was backgrounded; rerun for best accuracy" : "Complete");
+    } catch (error) {
+      if (error && error.name === "AbortError") setStatus("Stopped");
+      else setStatus("Test service unavailable · check the Cloudflare Worker route");
+    } finally {
+      state.running = false;
+      for (const controller of state.controllers) controller.abort();
+      state.controllers.clear();
+      if (state.visibilityHandler) document.removeEventListener("visibilitychange", state.visibilityHandler);
+      state.visibilityHandler = null;
+      updateControls(false);
+    }
+  }
+
+  function init() {
+    const ids = ["status", "progress-bar", "profile-select", "run-test", "stop-test", "data-note", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "details-content", "video-rating", "video-note", "gaming-rating", "gaming-note", "streaming-rating", "streaming-note", "downloads-rating", "downloads-note"];
+    for (const id of ids) elements[id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = $(id);
+    elements.profile = $("profile-select");
+    elements.run = $("run-test");
+    elements.stop = $("stop-test");
+    elements.profile.addEventListener("change", updateProfileNote);
+    elements.run.addEventListener("click", runTest);
+    elements.stop.addEventListener("click", stopTest);
+    updateProfileNote();
+  }
+
+  if (typeof window !== "undefined" && window.__INTERNET_QUALITY_EXPOSE_TESTS__) {
+    window.__internetQualityTest = { median, percentile, jitter, maxDeviationPercent, consistencyPercent, stabilityLabel, aggregateRounds, assess, profiles: PROFILES };
+  }
+
+  if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", init);
+})();

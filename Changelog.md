@@ -75,3 +75,18 @@
 - Updated the release manifest and SHA-256 checksum.
 - Rebuilt the downloadable ZIP.
 - Added a regression check to prevent the error from returning.
+
+## 2026-07-12 Update 4
+
+## Internet Quality Tester 1.0.0
+
+- Added multi-round latency, jitter and packet-loss approximation testing.
+- Added download speed, consistency and responsiveness-under-load measurements.
+- Added Cloudflare edge DNS resolver timing.
+- Added stability labels and suitability ratings for video calls, gaming, streaming and large downloads.
+- Added Light, Standard and Thorough test modes with estimated data usage.
+- Added cancellation, background-tab detection and clear browser limitation warnings.
+- Added methodology, source-code and project information pages.
+- Deployed free-plan Cloudflare Worker endpoints for ping, download and DNS testing.
+- Added regression tests for calculations, ratings, endpoint limits and site integration.
+- Added the Internet Quality Tester to the website’s project menu.

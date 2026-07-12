@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Internet Quality Tester methodology and browser limitations">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Internet Quality Tester / julianbaumgardt.com</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+      body { margin: 0; background: #000; color: #f4f4f4; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+      main { width: min(980px, 100%); margin: 0 auto; padding: clamp(22px, 5vw, 56px); }
+      nav { display: flex; justify-content: space-between; gap: 18px; margin-bottom: clamp(44px, 8vw, 90px); }
+      a { color: #aaa; text-decoration: none; }
+      a:hover, a:focus-visible { color: #fff; outline: none; }
+      h1 { margin: 0 0 22px; overflow-wrap: anywhere; font-size: clamp(2.4rem, 8vw, 6.5rem); line-height: .92; }
+      .summary { max-width: 800px; margin: 0 0 clamp(42px, 8vw, 78px); color: #aaa; font-size: clamp(1rem, 2.4vw, 1.35rem); line-height: 1.65; }
+      section { padding: 28px 0; border-top: 1px solid #222; }
+      h2 { margin: 0 0 20px; color: #888; font-size: .95rem; font-weight: 500; }
+      ul { display: grid; gap: 18px; margin: 0; padding: 0; list-style: none; }
+      li { color: #ddd; line-height: 1.55; }
+      li strong { color: #fff; font-weight: 500; }
+      code { padding: .05em .4em; border: 1px solid #242424; border-radius: 4px; background: #0c0c0c; color: #fff; font-size: .92em; }
+      .file-list { display: grid; border: 1px solid #222; background: #050505; }
+      .file-row { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 18px; padding: 18px; }
+      .file-row + .file-row { border-top: 1px solid #1c1c1c; }
+      .file-row span { color: #fff; overflow-wrap: anywhere; }
+      .file-row strong { color: #999; font-weight: 400; line-height: 1.5; }
+      .actions { display: flex; flex-wrap: wrap; gap: 14px; padding-top: 34px; }
+      .actions a { display: inline-grid; place-items: center; min-height: 44px; padding: 0 16px; border: 1px solid #242424; border-radius: 6px; color: #ddd; }
+      .actions a:hover, .actions a:focus-visible { background: #101010; text-decoration: none; }
+      @media (max-width: 680px) { nav, .file-row { grid-template-columns: 1fr; } nav { display: grid; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav aria-label="Page"><a href="index.html#projects">Back To Projects</a><a href="internet-quality.html">Open project</a></nav>
+      <h1>Internet Quality Tester</h1>
+      <p class="summary">A multi-round browser test that looks beyond a peak speed number to explain latency, jitter, failed probes, download consistency, responsiveness under load, resolver timing, and real-world suitability.</p>
+
+      <section><h2>What It Measures</h2><ul>
+        <li><strong>Idle latency.</strong> Median round-trip time for small uncached HTTPS requests to the nearest Cloudflare edge.</li>
+        <li><strong>Jitter.</strong> Median absolute change between consecutive successful idle-latency probes.</li>
+        <li><strong>Loss approximation.</strong> The share of HTTPS probes that fail or exceed the timeout. This is not literal IP packet loss.</li>
+        <li><strong>Download and consistency.</strong> Aggregate throughput from concurrent byte streams, plus the tenth-percentile sample divided by median throughput.</li>
+        <li><strong>Responsiveness under load.</strong> Latency probes continue while downloads are active. The penalty is loaded median minus idle median.</li>
+        <li><strong>Resolver timing.</strong> The Cloudflare Worker times an uncached lookup for a random invalid hostname. This describes the edge resolver, not the device's local DNS stack.</li>
+      </ul></section>
+
+      <section><h2>Methodology</h2><ul>
+        <li><strong>Warm-up is discarded.</strong> An initial request establishes the route before measured rounds begin.</li>
+        <li><strong>Multiple rounds.</strong> Light runs 2 rounds, Standard 3, and Thorough 5. Final metrics use medians so one unusually fast or slow round is less influential.</li>
+        <li><strong>Observed spread.</strong> Spread is the largest round deviation from the median. Labels describe the actual run and are not laboratory confidence intervals.</li>
+        <li><strong>Concurrent load.</strong> Standard and Thorough modes use two simultaneous downloads while latency probes run, exposing queueing delay that a single speed number can hide.</li>
+        <li><strong>User-controlled data.</strong> The page estimates maximum data use before the test and never starts automatically.</li>
+        <li><strong>Abortable work.</strong> Stop cancels active fetches, and background-tab use is reported because browsers may throttle hidden pages.</li>
+      </ul></section>
+
+      <section><h2>What The Ratings Mean</h2><ul>
+        <li><strong>Video calls.</strong> Weighs loaded latency, jitter, failed probes, and enough throughput for HD calling.</li>
+        <li><strong>Gaming.</strong> Prioritises idle latency, jitter, failed probes, and latency growth under competing traffic.</li>
+        <li><strong>Streaming.</strong> Prioritises sustained throughput and consistency rather than latency alone.</li>
+        <li><strong>Large downloads.</strong> Primarily reflects measured throughput. It deliberately does not pretend that fast downloads guarantee good real-time performance.</li>
+      </ul></section>
+
+      <section><h2>Browser And Network Limits</h2><ul>
+        <li><strong>No ICMP access.</strong> Browsers cannot send traditional ping packets, so every latency sample includes HTTPS and browser overhead.</li>
+        <li><strong>Cloudflare-edge scope.</strong> This measures the connection to a nearby Cloudflare location. Routes to a game server, workplace VPN, streaming CDN, or another country may differ.</li>
+        <li><strong>DNS is server-side.</strong> Browser privacy, caching, and connection reuse prevent a dependable isolated local DNS measurement.</li>
+        <li><strong>Results are approximate.</strong> Wi-Fi interference, VPNs, browser scheduling, power saving, other devices, downloads, and background tabs all affect a run.</li>
+        <li><strong>No universal score.</strong> The tool keeps real-time responsiveness and bulk throughput separate because connections can be good at one and poor at the other.</li>
+      </ul></section>
+
+      <section><h2>Free-Plan Safeguards</h2><ul>
+        <li>The Worker accepts only small probes, resolver checks, and downloads capped at 16 MiB per request.</li>
+        <li>Responses disable browser and CDN caching, use identity encoding, and permit only this site's origin.</li>
+        <li>The Worker performs minimal work within the free plan's fixed 10 ms CPU budget, with all statistics calculated in the browser.</li>
+        <li>If the endpoint or daily allowance is unavailable, the page stops with a clear service message instead of inventing a result.</li>
+      </ul></section>
+
+      <section><h2>Files</h2><div class="file-list">
+        <div class="file-row"><span>internet-quality.html</span><strong>Interface, controls, results, suitability cards, and warnings.</strong></div>
+        <div class="file-row"><span>internet-quality.js</span><strong>Measurement lifecycle, statistics, stability labels, and workload ratings.</strong></div>
+        <div class="file-row"><span>cloudflare-worker.js</span><strong>Uncached edge probes, capped byte streams, and resolver timing.</strong></div>
+        <div class="file-row"><span>wrangler.jsonc</span><strong>Cloudflare routes for the existing GitHub-hosted domain.</strong></div>
+        <div class="file-row"><span>internet-quality-test.js</span><strong>Regression checks for calculations, ratings, endpoint safeguards, and site integration.</strong></div>
+      </div><div class="actions"><a href="internet-quality.html">Open project</a><a href="internet-quality-code.html">View source code</a></div></section>
+    </main>
+  </body>
+</html>
