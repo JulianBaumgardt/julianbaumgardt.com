@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Internet Quality Tester methodology and browser limitations">
+    <meta name="description" content="WiFi Tester methodology and browser limitations">
     <link rel="icon" type="image/png" href="favicon.png">
-    <title>Internet Quality Tester / julianbaumgardt.com</title>
+    <title>WiFi Tester / julianbaumgardt.com</title>
     <style>
       * { box-sizing: border-box; }
       html, body { min-height: 100%; }
@@ -36,8 +36,8 @@
   <body>
     <main>
       <nav aria-label="Page"><a href="index.html#projects">Back To Projects</a><a href="internet-quality.html">Open project</a></nav>
-      <h1>Internet Quality Tester</h1>
-      <p class="summary">A multi-round browser test that looks beyond a peak speed number to explain latency, jitter, failed probes, download consistency, responsiveness under load, resolver timing, and real-world suitability.</p>
+      <h1>WiFi Tester</h1>
+      <p class="summary">A multi-round browser test that looks beyond a peak speed number to explain latency, jitter, failed probes, download consistency, responsiveness under load, resolver timing, and stability.</p>
 
       <section><h2>What It Measures</h2><ul>
         <li><strong>Idle latency.</strong> Median round-trip time for small uncached HTTPS requests to the nearest Cloudflare edge.</li>
@@ -57,13 +57,6 @@
         <li><strong>Abortable work.</strong> Stop cancels active fetches, and background-tab use is reported because browsers may throttle hidden pages.</li>
       </ul></section>
 
-      <section><h2>What The Ratings Mean</h2><ul>
-        <li><strong>Video calls.</strong> Weighs loaded latency, jitter, failed probes, and enough throughput for HD calling.</li>
-        <li><strong>Gaming.</strong> Prioritises idle latency, jitter, failed probes, and latency growth under competing traffic.</li>
-        <li><strong>Streaming.</strong> Prioritises sustained throughput and consistency rather than latency alone.</li>
-        <li><strong>Large downloads.</strong> Primarily reflects measured throughput. It deliberately does not pretend that fast downloads guarantee good real-time performance.</li>
-      </ul></section>
-
       <section><h2>Browser And Network Limits</h2><ul>
         <li><strong>No ICMP access.</strong> Browsers cannot send traditional ping packets, so every latency sample includes HTTPS and browser overhead.</li>
         <li><strong>Cloudflare-edge scope.</strong> This measures the connection to a nearby Cloudflare location. Routes to a game server, workplace VPN, streaming CDN, or another country may differ.</li>
@@ -81,11 +74,11 @@
       </ul></section>
 
       <section><h2>Files</h2><div class="file-list">
-        <div class="file-row"><span>internet-quality.html</span><strong>Interface, controls, results, suitability cards, and warnings.</strong></div>
-        <div class="file-row"><span>internet-quality.js</span><strong>Measurement lifecycle, statistics, stability labels, and workload ratings.</strong></div>
+        <div class="file-row"><span>internet-quality.html</span><strong>Interface, controls, results, and browser-limit warnings.</strong></div>
+        <div class="file-row"><span>internet-quality.js</span><strong>Measurement lifecycle, statistics, and stability labels.</strong></div>
         <div class="file-row"><span>cloudflare-worker.js</span><strong>Uncached edge probes, capped byte streams, and resolver timing.</strong></div>
         <div class="file-row"><span>wrangler.jsonc</span><strong>Cloudflare routes for the existing GitHub-hosted domain.</strong></div>
-        <div class="file-row"><span>internet-quality-test.js</span><strong>Regression checks for calculations, ratings, endpoint safeguards, and site integration.</strong></div>
+        <div class="file-row"><span>internet-quality-test.js</span><strong>Regression checks for calculations, endpoint safeguards, and site integration.</strong></div>
       </div><div class="actions"><a href="internet-quality.html">Open project</a><a href="internet-quality-code.html">View source code</a></div></section>
     </main>
   </body>

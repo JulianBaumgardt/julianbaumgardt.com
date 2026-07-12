@@ -38,9 +38,10 @@
   }
 
   function maxDeviationPercent(values) {
-    const center = median(values);
+    const clean = values.filter(Number.isFinite);
+    const center = median(clean);
     if (!Number.isFinite(center) || center <= 0) return 0;
-    return Math.max(...values.map((value) => Math.abs(value - center))) / center * 100;
+    return Math.max(...clean.map((value) => Math.abs(value - center))) / center * 100;
   }
 
   function consistencyPercent(samples) {
@@ -259,25 +260,6 @@
     return result;
   }
 
-  function assess(result) {
-    const poorRealtime = result.lossPercent >= 3 || result.jitterMs >= 40 || result.loadedMs >= 350;
-    const video = poorRealtime ? ["Poor", "Drop-outs or delays are likely under load."]
-      : result.loadedMs < 180 && result.jitterMs < 20 && result.downloadMbps >= 8 ? ["Excellent", "Strong headroom for stable HD group calls."]
-      : ["Good", "Suitable for calls, with some sensitivity to competing traffic."];
-    const gaming = result.lossPercent >= 2 || result.idleMs >= 100 || result.jitterMs >= 30 ? ["Poor", "Latency variation or failed probes may be noticeable."]
-      : result.idleMs < 35 && result.jitterMs < 10 && result.loadedMs < 100 ? ["Excellent", "Responsive for fast online games, even with traffic."]
-      : result.idleMs < 70 && result.jitterMs < 20 ? ["Good", "Suitable for most games; loaded traffic may add delay."]
-      : ["Limited", "Fine for casual play, less ideal for reaction-sensitive games."];
-    const streaming = result.downloadMbps < 8 || result.consistency < 40 ? ["Limited", "Lower quality or buffering is possible."]
-      : result.downloadMbps >= 35 && result.consistency >= 70 ? ["Excellent", "Comfortable headroom for 4K streaming."]
-      : ["Good", "Suitable for HD and likely 4K on one screen."];
-    const downloads = result.downloadMbps >= 200 ? ["Excellent", "Large files should complete quickly."]
-      : result.downloadMbps >= 50 ? ["Good", "Healthy throughput for large files."]
-      : result.downloadMbps >= 15 ? ["Limited", "Large files will take time but remain practical."]
-      : ["Poor", "Large transfers will be slow."];
-    return { video, gaming, streaming, downloads };
-  }
-
   function render(result, rounds) {
     elements.latencyScore.textContent = formatMs(result.idleMs);
     elements.downloadScore.textContent = formatMbps(result.downloadMbps);
@@ -293,12 +275,6 @@
     elements.penaltyMetric.textContent = `+${formatMs(Math.max(0, result.penaltyMs))}`;
     elements.dnsMetric.textContent = formatMs(result.dnsMs);
     elements.roundsMetric.textContent = String(result.rounds);
-
-    const ratings = assess(result);
-    for (const key of ["video", "gaming", "streaming", "downloads"]) {
-      elements[`${key}Rating`].textContent = ratings[key][0];
-      elements[`${key}Note`].textContent = ratings[key][1];
-    }
 
     elements.detailsContent.innerHTML = `<table class="round-table"><thead><tr><th>Round</th><th>Idle</th><th>Jitter</th><th>Download</th><th>Loaded</th><th>Consistency</th><th>DNS</th><th>Failed probes</th></tr></thead><tbody>${rounds.map((round, index) => `<tr><td>${index + 1}</td><td>${formatMs(round.idleMs)}</td><td>${formatMs(round.jitterMs)}</td><td>${formatMbps(round.downloadMbps)}</td><td>${formatMs(round.loadedMs)}</td><td>${formatPercent(round.consistency)}</td><td>${formatMs(round.dnsMs)}</td><td>${round.failures} / ${round.attempts}</td></tr>`).join("")}</tbody></table>`;
   }
@@ -356,7 +332,7 @@
   }
 
   function init() {
-    const ids = ["status", "progress-bar", "profile-select", "run-test", "stop-test", "data-note", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "details-content", "video-rating", "video-note", "gaming-rating", "gaming-note", "streaming-rating", "streaming-note", "downloads-rating", "downloads-note"];
+    const ids = ["status", "progress-bar", "profile-select", "run-test", "stop-test", "data-note", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "details-content"];
     for (const id of ids) elements[id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = $(id);
     elements.profile = $("profile-select");
     elements.run = $("run-test");
@@ -368,7 +344,7 @@
   }
 
   if (typeof window !== "undefined" && window.__INTERNET_QUALITY_EXPOSE_TESTS__) {
-    window.__internetQualityTest = { median, percentile, jitter, maxDeviationPercent, consistencyPercent, stabilityLabel, aggregateRounds, assess, profiles: PROFILES };
+    window.__internetQualityTest = { median, percentile, jitter, maxDeviationPercent, consistencyPercent, stabilityLabel, aggregateRounds, profiles: PROFILES };
   }
 
   if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", init);
