@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="CPU Benchmark project notes">
     <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="site-typography.css">
     <title>CPU Benchmark / julianbaumgardt.com</title>
     <style>
       * {
@@ -119,9 +120,15 @@
         border-top: 1px solid #1c1c1c;
       }
 
-      .file-row span {
+      .file-row > a {
         color: #fff;
         overflow-wrap: anywhere;
+      }
+
+      .file-row > a:hover,
+      .file-row > a:focus-visible {
+        text-decoration: underline;
+        outline: none;
       }
 
       .file-row strong {
@@ -266,19 +273,19 @@
         <div class="file-list">
 
             <div class="file-row">
-              <span>cpu-benchmark.html</span>
+              <a href="code-viewer.html?file=cpu-benchmark.html">cpu-benchmark.html</a>
               <strong>Page structure, controls, result panels, and the embedded fallback copy of the worker source.</strong>
             </div>
             <div class="file-row">
-              <span>cpu-benchmark.js</span>
+              <a href="code-viewer.html?file=cpu-benchmark.js">cpu-benchmark.js</a>
               <strong>Orchestrates workers, rotates warm-up and measured phases, verifies checksums, computes scores and observed spread, and renders results.</strong>
             </div>
             <div class="file-row">
-              <span>cpu-worker.js</span>
+              <a href="code-viewer.html?file=cpu-worker.js">cpu-worker.js</a>
               <strong>Hand-assembles and runs the WebAssembly benchmark kernel inside each worker thread.</strong>
             </div>
             <div class="file-row">
-              <span>cpu-benchmark-test.js</span>
+              <a href="code-viewer.html?file=cpu-benchmark-test.js">cpu-benchmark-test.js</a>
               <strong>Node tests for the scoring math, the score-rendering path, and the worker-loading fallback logic.</strong>
             </div>
         </div>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="W11 Optimiser project notes">
     <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="site-typography.css">
     <title>W11 Optimiser / julianbaumgardt.com</title>
     <style>
       * {
@@ -119,9 +120,15 @@
         border-top: 1px solid #1c1c1c;
       }
 
-      .file-row span {
+      .file-row > a {
         color: #fff;
         overflow-wrap: anywhere;
+      }
+
+      .file-row > a:hover,
+      .file-row > a:focus-visible {
+        text-decoration: underline;
+        outline: none;
       }
 
       .file-row strong {
@@ -270,27 +277,27 @@
         <div class="file-list">
 
             <div class="file-row">
-              <span>w11</span>
+              <a href="code-viewer.html?file=w11">w11</a>
               <strong>Website bootstrapper for <code>irm julianbaumgardt.com/w11 | iex</code>.</strong>
             </div>
             <div class="file-row">
-              <span>w11-optimiser.ps1</span>
+              <a href="code-viewer.html?file=w11-optimiser/w11-optimiser.ps1">w11-optimiser.ps1</a>
               <strong>Main PowerShell tool: audit, safe optimisation, post-check, HTML report generation, backups, and undo logic.</strong>
             </div>
             <div class="file-row">
-              <span>w11-optimiser-launcher.cmd</span>
+              <a href="code-viewer.html?file=w11-optimiser/w11-optimiser-launcher.cmd">w11-optimiser-launcher.cmd</a>
               <strong>Double-click launcher and command shortcut menu for audit, safe optimise, post-check, undo, and help.</strong>
             </div>
             <div class="file-row">
-              <span>w11-optimiser-readme.md</span>
+              <a href="code-viewer.html?file=w11-optimiser/w11-optimiser-readme.md">w11-optimiser-readme.md</a>
               <strong>Usage guide, safety boundaries, folder layout, generated outputs, and riskier-tweak notes.</strong>
             </div>
             <div class="file-row">
-              <span>w11-optimiser.manifest.json</span>
+              <a href="code-viewer.html?file=w11-optimiser/w11-optimiser.manifest.json">w11-optimiser.manifest.json</a>
               <strong>Version and SHA-256 used by the bootstrapper to check the downloaded PowerShell script.</strong>
             </div>
             <div class="file-row">
-              <span>w11-optimiser-tests.ps1</span>
+              <a href="code-viewer.html?file=w11-optimiser/w11-optimiser-tests.ps1">w11-optimiser-tests.ps1</a>
               <strong>Pester regression checks for dedicated power plans and non-destructive registry undo.</strong>
             </div>
         </div>

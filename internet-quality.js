@@ -281,7 +281,7 @@
 
   function updateProfileNote() {
     const profile = PROFILES[elements.profile.value];
-    elements.dataNote.textContent = `${profile.label} uses up to approximately ${profile.estimatedMb} MB over ${profile.rounds} latency and ${profile.downloadRounds} load rounds.`;
+    elements.dataNote.textContent = `${profile.label} uses about ${profile.estimatedMb} MB across ${profile.rounds} latency and ${profile.downloadRounds} load rounds.`;
   }
 
   function updateControls(running) {

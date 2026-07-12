@@ -3,9 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="WiFi Tester methodology and browser limitations">
+    <meta name="description" content="Internet Tester methodology and browser limitations">
     <link rel="icon" type="image/png" href="favicon.png">
-    <title>WiFi Tester / julianbaumgardt.com</title>
+    <link rel="stylesheet" href="site-typography.css">
+    <title>Internet Tester / julianbaumgardt.com</title>
     <style>
       * { box-sizing: border-box; }
       html, body { min-height: 100%; }
@@ -14,8 +15,8 @@
       nav { display: flex; justify-content: space-between; gap: 18px; margin-bottom: clamp(44px, 8vw, 90px); }
       a { color: #aaa; text-decoration: none; }
       a:hover, a:focus-visible { color: #fff; outline: none; }
-      h1 { margin: 0 0 22px; overflow-wrap: anywhere; font-size: clamp(2.4rem, 8vw, 6.5rem); line-height: .92; }
-      .summary { max-width: 800px; margin: 0 0 clamp(42px, 8vw, 78px); color: #aaa; font-size: clamp(1rem, 2.4vw, 1.35rem); line-height: 1.65; }
+      h1 { margin: 0 0 22px; overflow-wrap: anywhere; font-size: clamp(2.4rem, 9vw, 7rem); line-height: .92; }
+      .summary { max-width: 760px; margin: 0 0 clamp(42px, 8vw, 78px); color: #aaa; font-size: clamp(1rem, 2.4vw, 1.35rem); line-height: 1.65; }
       section { padding: 28px 0; border-top: 1px solid #222; }
       h2 { margin: 0 0 20px; color: #888; font-size: .95rem; font-weight: 500; }
       ul { display: grid; gap: 18px; margin: 0; padding: 0; list-style: none; }
@@ -25,7 +26,8 @@
       .file-list { display: grid; border: 1px solid #222; background: #050505; }
       .file-row { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 18px; padding: 18px; }
       .file-row + .file-row { border-top: 1px solid #1c1c1c; }
-      .file-row span { color: #fff; overflow-wrap: anywhere; }
+      .file-row > a { color: #fff; overflow-wrap: anywhere; }
+      .file-row > a:hover, .file-row > a:focus-visible { text-decoration: underline; outline: none; }
       .file-row strong { color: #999; font-weight: 400; line-height: 1.5; }
       .actions { display: flex; flex-wrap: wrap; gap: 14px; padding-top: 34px; }
       .actions a { display: inline-grid; place-items: center; min-height: 44px; padding: 0 16px; border: 1px solid #242424; border-radius: 6px; color: #ddd; }
@@ -36,7 +38,7 @@
   <body>
     <main>
       <nav aria-label="Page"><a href="index.html#projects">Back To Projects</a><a href="internet-quality.html">Open project</a></nav>
-      <h1>WiFi Tester</h1>
+      <h1>Internet Tester</h1>
       <p class="summary">A multi-round browser test that looks beyond a peak speed number to explain latency, jitter, failed probes, download consistency, responsiveness under load, resolver timing, and stability.</p>
 
       <section><h2>What It Measures</h2><ul>
@@ -58,6 +60,7 @@
       </ul></section>
 
       <section><h2>Browser And Network Limits</h2><ul>
+        <li><strong>It is a browser estimate.</strong> The tool may be less precise than native applications or dedicated speed-test protocols that can control connections and timing more directly.</li>
         <li><strong>No ICMP access.</strong> Browsers cannot send traditional ping packets, so every latency sample includes HTTPS and browser overhead.</li>
         <li><strong>Cloudflare-edge scope.</strong> This measures the connection to a nearby Cloudflare location. Routes to a game server, workplace VPN, streaming CDN, or another country may differ.</li>
         <li><strong>DNS is server-side.</strong> Browser privacy, caching, and connection reuse prevent a dependable isolated local DNS measurement.</li>
@@ -74,11 +77,11 @@
       </ul></section>
 
       <section><h2>Files</h2><div class="file-list">
-        <div class="file-row"><span>internet-quality.html</span><strong>Interface, controls, results, and browser-limit warnings.</strong></div>
-        <div class="file-row"><span>internet-quality.js</span><strong>Measurement lifecycle, statistics, and stability labels.</strong></div>
-        <div class="file-row"><span>cloudflare-worker.js</span><strong>Uncached edge probes, capped byte streams, and resolver timing.</strong></div>
-        <div class="file-row"><span>wrangler.jsonc</span><strong>Cloudflare routes for the existing GitHub-hosted domain.</strong></div>
-        <div class="file-row"><span>internet-quality-test.js</span><strong>Regression checks for calculations, endpoint safeguards, and site integration.</strong></div>
+        <div class="file-row"><a href="code-viewer.html?file=internet-quality.html">internet-quality.html</a><strong>Interface, controls, results, and browser-limit warnings.</strong></div>
+        <div class="file-row"><a href="code-viewer.html?file=internet-quality.js">internet-quality.js</a><strong>Measurement lifecycle, statistics, and stability labels.</strong></div>
+        <div class="file-row"><a href="code-viewer.html?file=cloudflare-worker.js">cloudflare-worker.js</a><strong>Uncached edge probes, capped byte streams, and resolver timing.</strong></div>
+        <div class="file-row"><a href="code-viewer.html?file=wrangler.jsonc">wrangler.jsonc</a><strong>Cloudflare routes for the existing GitHub-hosted domain.</strong></div>
+        <div class="file-row"><a href="code-viewer.html?file=internet-quality-test.js">internet-quality-test.js</a><strong>Regression checks for calculations, endpoint safeguards, and site integration.</strong></div>
       </div><div class="actions"><a href="internet-quality.html">Open project</a><a href="internet-quality-code.html">View source code</a></div></section>
     </main>
   </body>

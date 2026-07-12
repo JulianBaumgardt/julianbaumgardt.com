@@ -1,0 +1,28 @@
+:root {
+  --site-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+html {
+  font-family: var(--site-font-mono);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+pre,
+code,
+kbd,
+samp {
+  font-family: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  letter-spacing: inherit;
+}

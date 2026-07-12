@@ -121,3 +121,17 @@
 - Updated spread calculations to ignore rounds without applicable measurements.
 - Added regression checks to prevent the NaN% error from returning.
 - Updated the browser cache version so visitors receive the corrected tester immediately.
+
+## 2026-07-12 Update 4.3
+
+## Site Design Consistency
+
+- Added a shared typography stylesheet across all 12 website pages.
+- Standardized the monospace font stack for headings, body text, buttons, inputs, selections and code.
+- Aligned the Internet Tester typography with CPU Benchmark.
+- Updated the Internet Tester source page to match the CPU and W11 source-page design.
+- Preserved responsive sizing for longer page titles and smaller screens.
+- Added regression coverage to ensure every HTML page uses the shared typography stylesheet.
+- Added direct code-viewer links to filenames on all three project information pages.
+- Renamed WiFi Tester to Internet Tester to reflect support for WiFi, Ethernet, 4G and 5G connections.
+- Removed duplicate divider lines from CPU Benchmark and Internet Tester while retaining their progress indicators.

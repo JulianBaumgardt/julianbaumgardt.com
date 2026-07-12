@@ -12,6 +12,7 @@ const worker = fs.readFileSync(path.join(root, "cloudflare-worker.js"), "utf8");
 const wrangler = fs.readFileSync(path.join(root, "wrangler.jsonc"), "utf8");
 const homepage = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const viewer = fs.readFileSync(path.join(root, "code-viewer.html"), "utf8");
+const typography = fs.readFileSync(path.join(root, "site-typography.css"), "utf8");
 
 const context = {
   console,
@@ -54,12 +55,19 @@ assert.equal(aggregate.downloadMbps, 90);
 assert.equal(aggregate.penaltyMs, 48);
 assert.equal(aggregate.lossPercent, 100 / 30);
 assert.equal(aggregate.rounds, 3);
-assert.match(html, /WiFi Tester/);
+assert.match(html, /Internet Tester/);
 assert.doesNotMatch(html, /Connection Suitability/);
 assert.doesNotMatch(source, /function assess\(/);
-assert.match(html, /Browser limits:/);
+assert.match(html, /Browser estimate:/);
+assert.match(html, /may be less precise than a dedicated speed-test protocol/);
+assert.match(html, /About This Project/);
+assert.match(html, /View Source Code/);
 assert.match(homepage, /internet-quality\.html/);
 assert.match(viewer, /cloudflare-worker\.js/);
+for (const fileName of fs.readdirSync(root).filter((fileName) => fileName.endsWith(".html"))) {
+  assert.match(fs.readFileSync(path.join(root, fileName), "utf8"), /site-typography\.css/, `${fileName} should use the shared typography stylesheet`);
+}
+assert.match(typography, /--site-font-mono:/);
 assert.match(worker, /MAX_DOWNLOAD_BYTES = 32 \* 1024 \* 1024/);
 assert.match(worker, /Cache-Control/);
 assert.match(worker, /Content-Encoding/);

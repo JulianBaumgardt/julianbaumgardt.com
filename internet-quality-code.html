@@ -3,35 +3,34 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="WiFi Tester source code files">
+    <meta name="description" content="Internet Tester source code files">
     <link rel="icon" type="image/png" href="favicon.png">
-    <title>WiFi Tester / Code</title>
+    <link rel="stylesheet" href="site-typography.css">
+    <title>Internet Tester / Code</title>
     <style>
       * { box-sizing: border-box; }
       html, body { min-height: 100%; }
-      body { margin: 0; background: #000; color: #f4f4f4; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-      main { width: min(980px, 100%); margin: 0 auto; padding: clamp(22px, 5vw, 56px); }
-      nav { display: flex; justify-content: space-between; gap: 18px; margin-bottom: clamp(44px, 8vw, 90px); }
+      body { margin: 0; background: #000; color: #f4f4f4; }
+      main { width: min(1040px, 100%); margin: 0 auto; padding: clamp(22px, 5vw, 56px); }
+      nav { display: flex; justify-content: space-between; gap: 18px; margin-bottom: clamp(44px, 8vw, 86px); }
       a { color: #aaa; text-decoration: none; }
       a:hover, a:focus-visible { color: #fff; outline: none; }
-      h1 { margin: 0 0 22px; overflow-wrap: anywhere; font-size: clamp(2.4rem, 8vw, 6.5rem); line-height: .92; }
-      .summary { max-width: 760px; margin: 0 0 clamp(42px, 8vw, 78px); color: #aaa; font-size: clamp(1rem, 2.4vw, 1.35rem); line-height: 1.65; }
-      ul { margin: 0; padding: 0; border: 1px solid #222; background: #050505; list-style: none; }
-      li + li { border-top: 1px solid #1c1c1c; }
-      li a { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; min-height: 88px; padding: 18px; color: #eee; }
-      li a:hover, li a:focus-visible { background: #0c0c0c; text-decoration: none; }
-      .file-name, .file-note { display: block; overflow-wrap: anywhere; }
-      .file-note { margin-top: 7px; color: #888; font-size: 13px; line-height: 1.45; }
-      .open { color: #666; }
-      @media (max-width: 640px) { nav { display: grid; } .open { display: none; } }
+      h1 { margin: 0 0 22px; overflow-wrap: normal; font-size: clamp(2rem, 6.4vw, 4.6rem); line-height: .98; letter-spacing: 0; white-space: nowrap; }
+      .summary { max-width: 760px; margin: 0 0 clamp(42px, 8vw, 72px); color: #aaa; font-size: clamp(1rem, 2.2vw, 1.28rem); line-height: 1.65; }
+      .code-list { display: grid; gap: 18px; margin: 0; padding: 0; list-style: none; }
+      .code-list a { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: center; min-height: 92px; padding: 22px 0; }
+      .file-name { display: block; color: #f4f4f4; font-size: clamp(1.25rem, 3.2vw, 2rem); line-height: 1.15; overflow-wrap: anywhere; }
+      .file-note { display: block; margin-top: 8px; color: #777; font-size: clamp(.88rem, 1.7vw, 1rem); line-height: 1.5; overflow-wrap: anywhere; }
+      .open { color: #777; font-size: clamp(1.1rem, 2.4vw, 1.6rem); }
+      @media (max-width: 640px) { nav, .code-list a { grid-template-columns: 1fr; } h1 { white-space: normal; } .open { display: none; } }
     </style>
   </head>
   <body>
     <main>
       <nav aria-label="Page"><a href="internet-quality.html">Back To Tester</a><a href="index.html#projects">Back To Projects</a></nav>
-      <h1>WiFi Tester Code</h1>
+      <h1>Internet Tester Code</h1>
       <p class="summary">Choose a tester or Cloudflare endpoint file to view.</p>
-      <ul aria-label="WiFi Tester source files">
+      <ul class="code-list" aria-label="Internet Tester source files">
         <li><a href="code-viewer.html?file=internet-quality.html"><span><span class="file-name">internet-quality.html</span><span class="file-note">Accessible test interface, result panels, and browser-limit notice.</span></span><span class="open">-&gt;</span></a></li>
         <li><a href="code-viewer.html?file=internet-quality.js"><span><span class="file-name">internet-quality.js</span><span class="file-note">Multi-round measurement controller, statistics, cancellation, and stability analysis.</span></span><span class="open">-&gt;</span></a></li>
         <li><a href="code-viewer.html?file=cloudflare-worker.js"><span><span class="file-name">cloudflare-worker.js</span><span class="file-note">Free-plan edge endpoints for uncached probes, downloads, and resolver timing.</span></span><span class="open">-&gt;</span></a></li>

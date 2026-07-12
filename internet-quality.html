@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A transparent, multi-round WiFi test for latency, jitter, download consistency, loaded responsiveness, and stability.">
+  <meta name="description" content="A transparent, multi-round internet test for latency, jitter, download consistency, loaded responsiveness, and stability.">
   <link rel="icon" type="image/png" href="favicon.png">
-  <title>WiFi Tester</title>
+  <link rel="stylesheet" href="site-typography.css">
+  <title>Internet Tester</title>
   <style>
     :root {
       color-scheme: dark;
@@ -43,8 +44,8 @@
       margin-bottom: clamp(42px, 8vw, 92px);
     }
 
-    .back-link, .status { color: var(--muted); font-size: 13px; }
-    .status { max-width: 50%; text-align: right; }
+    .back-link { color: var(--muted); font-size: 14px; }
+    .status { max-width: 50%; color: var(--muted); font-size: 12px; text-align: right; }
 
     .hero {
       display: grid;
@@ -52,16 +53,15 @@
       align-items: end;
       gap: clamp(28px, 5vw, 70px);
       padding-bottom: 34px;
-      border-bottom: 1px solid var(--line);
     }
 
     h1 {
       max-width: 760px;
       margin: 0;
-      font-size: clamp(44px, 7.6vw, 92px);
+      font-size: clamp(48px, 8.1vw, 96px);
       font-weight: 760;
-      line-height: .92;
-      letter-spacing: -.055em;
+      line-height: 1;
+      letter-spacing: 0;
     }
 
     .controls { display: grid; gap: 12px; }
@@ -92,7 +92,7 @@
     .score-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); background: var(--panel); }
     .score { min-height: 148px; padding: 20px; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
     .score:last-child { border-right: 0; }
-    .score strong { display: block; overflow-wrap: anywhere; font-size: clamp(28px, 4vw, 46px); line-height: .95; }
+    .score strong { display: block; overflow-wrap: anywhere; font-size: clamp(28px, 4vw, 48px); line-height: .95; }
     .score span, .score small { color: var(--muted); font-size: 13px; }
     .score small { min-height: 18px; line-height: 1.35; }
 
@@ -115,7 +115,11 @@
 
     .notice { margin: 18px 0 0; padding: 16px 18px; border: 1px solid var(--line); color: #aaa; font-size: 12px; line-height: 1.6; }
     .notice strong { color: var(--text); font-weight: 600; }
-    .footer-links { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 34px; color: var(--muted); font-size: 13px; }
+    .useful-links { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--line); }
+    .useful-links h2 { margin: 0; color: var(--muted); font-size: 13px; font-weight: 500; }
+    .footer-actions { display: flex; flex-wrap: wrap; gap: 14px; padding-top: 20px; }
+    .footer-actions a { display: inline-grid; place-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: #ddd; font-size: 13px; }
+    .footer-actions a:hover, .footer-actions a:focus-visible { background: var(--panel-strong); text-decoration: none; outline: none; }
 
     @media (max-width: 800px) {
       .hero, .score-grid, .metrics { grid-template-columns: 1fr; }
@@ -139,7 +143,7 @@
     </nav>
 
     <section class="hero" aria-labelledby="page-title">
-      <h1 id="page-title">WiFi Tester</h1>
+      <h1 id="page-title">Internet Tester</h1>
       <div class="controls" aria-label="Test controls">
         <div class="control-row">
           <label for="profile-select">Test depth</label>
@@ -153,7 +157,7 @@
           <button class="primary" id="run-test" type="button">Run Test</button>
           <button class="stop" id="stop-test" type="button" disabled>Stop</button>
         </div>
-        <p class="data-note" id="data-note">Standard uses up to approximately 128 MB over 3 latency and 2 load rounds.</p>
+        <p class="data-note" id="data-note">Standard uses about 128 MB across 3 latency and 2 load rounds.</p>
       </div>
     </section>
 
@@ -180,8 +184,16 @@
       <div class="details-content" id="details-content"><div class="details-empty">No completed run yet.</div></div>
     </details>
 
-    <p class="notice"><strong>Browser limits:</strong> this uses timed HTTPS requests to the nearest Cloudflare edge, not ICMP ping. Loss means failed or timed-out web probes, and DNS timing is measured by the server resolver. Results can be affected by browser scheduling, VPNs, Wi-Fi, caching, other traffic, and background tabs.</p>
-    <div class="footer-links"><a href="about-internet-quality.html">Methodology &amp; limitations</a><a href="internet-quality-code.html">View source code</a></div>
+    <p class="notice"><strong>Browser estimate:</strong> this is not a native network measurement and may be less precise than a dedicated speed-test protocol. It uses timed HTTPS requests to the nearest Cloudflare edge, not ICMP ping. Loss means failed or timed-out web probes, and DNS timing is measured by the server resolver. Results can be affected by browser scheduling, VPNs, Wi-Fi, caching, other traffic, and background tabs.</p>
+
+    <section class="useful-links" aria-labelledby="useful-links-title">
+      <h2 id="useful-links-title">Useful Links</h2>
+      <div class="footer-actions">
+        <a href="about-internet-quality.html">About This Project</a>
+        <a href="internet-quality-code.html">View Source Code</a>
+        <a href="index.html#projects">Back To Projects</a>
+      </div>
+    </section>
   </main>
   <script src="internet-quality.js?v=3" defer></script>
 </body>

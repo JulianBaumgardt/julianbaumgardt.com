@@ -137,6 +137,8 @@ assert.ok(!stopFunction[0].includes("updateControls(false)"), "Stop must not ena
 
 assert.match(headers, /Cross-Origin-Opener-Policy: same-origin/);
 assert.match(headers, /Cross-Origin-Embedder-Policy: require-corp/);
+assert.match(html, /About This Project/);
+assert.match(html, /View Source Code/);
 
 assert.equal(embeddedWorker[1].trim(), worker.trim(), "embedded worker fallback should match cpu-worker.js");
 
