@@ -90,3 +90,21 @@
 - Deployed free-plan Cloudflare Worker endpoints for ping, download and DNS testing.
 - Added regression tests for calculations, ratings, endpoint limits and site integration.
 - Added the Internet Quality Tester to the website’s project menu.
+
+## 2026-07-12 Update 4.1
+
+## Internet Quality Tester 1.1.0
+
+- Improved download accuracy for high-speed internet connections.
+- Added longer download measurements with increased test payloads.
+- Added concurrent download streams to better saturate fast connections.
+- Excluded the first 512 KiB of each stream from timing to reduce connection-startup bias.
+- Replaced short byte-based samples with steadier 250 ms throughput windows.
+- Separated latency rounds from bandwidth-heavy load rounds.
+- Updated estimated data usage for every test depth.
+- Increased the server-side download cap from 16 MiB to 32 MiB per request.
+- Added Cloudflare-native rate limiting for all test requests.
+- Added a separate stricter limit for bandwidth-heavy downloads.
+- Added HTTP 429 handling and a clear one-minute retry message.
+- Added regression coverage for download caps, profiles and rate-limit responses.
+- Updated the browser cache version so the improved tester loads immediately after deployment.

@@ -58,11 +58,16 @@ assert.match(html, /Internet Quality/);
 assert.match(html, /Browser limits:/);
 assert.match(homepage, /internet-quality\.html/);
 assert.match(viewer, /cloudflare-worker\.js/);
-assert.match(worker, /MAX_DOWNLOAD_BYTES = 16 \* 1024 \* 1024/);
+assert.match(worker, /MAX_DOWNLOAD_BYTES = 32 \* 1024 \* 1024/);
 assert.match(worker, /Cache-Control/);
 assert.match(worker, /Content-Encoding/);
 assert.match(worker, /crypto\.randomUUID/);
+assert.match(worker, /REQUEST_LIMITER/);
+assert.match(worker, /DOWNLOAD_LIMITER/);
 assert.match(wrangler, /julianbaumgardt\.com\/network-test\/\*/);
+assert.match(wrangler, /"ratelimits"/);
+assert.equal(hooks.profiles.standard.downloadRounds, 2);
+assert.equal(hooks.profiles.standard.estimatedMb, 128);
 assert.match(source, /detailsContent\.innerHTML = `<table class="round-table">/, "round details should use the fixed table template");
 
 async function testWorker() {
@@ -82,23 +87,34 @@ async function testWorker() {
   vm.createContext(workerContext);
   vm.runInContext(worker.replace("export default", "globalThis.workerModule ="), workerContext, { filename: "cloudflare-worker.js" });
   const handler = workerContext.workerModule.fetch;
+  const allowEnv = {
+    REQUEST_LIMITER: { limit: async () => ({ success: true }) },
+    DOWNLOAD_LIMITER: { limit: async () => ({ success: true }) }
+  };
 
-  const ping = await handler(new Request("https://julianbaumgardt.com/network-test/ping"));
+  const ping = await handler(new Request("https://julianbaumgardt.com/network-test/ping"), allowEnv);
   assert.equal(ping.status, 200);
   assert.equal(await ping.text(), "ok");
   assert.equal(ping.headers.get("cache-control"), "no-store, no-cache, must-revalidate, proxy-revalidate");
 
-  const download = await handler(new Request("https://julianbaumgardt.com/network-test/download?bytes=1048576"));
+  const download = await handler(new Request("https://julianbaumgardt.com/network-test/download?bytes=1048576"), allowEnv);
   assert.equal(download.status, 200);
   assert.equal((await download.arrayBuffer()).byteLength, 1048576);
   assert.equal(download.headers.get("content-encoding"), "identity");
 
-  const capped = await handler(new Request("https://julianbaumgardt.com/network-test/download?bytes=999999999"));
-  assert.equal(Number(capped.headers.get("content-length")), 16 * 1024 * 1024);
+  const capped = await handler(new Request("https://julianbaumgardt.com/network-test/download?bytes=999999999"), allowEnv);
+  assert.equal(Number(capped.headers.get("content-length")), 32 * 1024 * 1024);
   await capped.body.cancel();
 
-  const forbidden = await handler(new Request("https://julianbaumgardt.com/network-test/ping", { headers: { Origin: "https://example.com" } }));
+  const forbidden = await handler(new Request("https://julianbaumgardt.com/network-test/ping", { headers: { Origin: "https://example.com" } }), allowEnv);
   assert.equal(forbidden.status, 403);
+
+  const limited = await handler(new Request("https://julianbaumgardt.com/network-test/download?bytes=1048576"), {
+    REQUEST_LIMITER: { limit: async () => ({ success: true }) },
+    DOWNLOAD_LIMITER: { limit: async () => ({ success: false }) }
+  });
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get("retry-after"), "60");
 }
 
 testWorker().then(() => console.log("internet quality tests passed")).catch((error) => {

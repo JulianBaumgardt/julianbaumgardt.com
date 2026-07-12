@@ -2,12 +2,13 @@
   "use strict";
 
   const PROFILES = {
-    light: { label: "Light", rounds: 2, probes: 6, downloads: 1, bytesPerDownload: 4 * 1024 * 1024, estimatedMb: 8 },
-    standard: { label: "Standard", rounds: 3, probes: 8, downloads: 2, bytesPerDownload: 8 * 1024 * 1024, estimatedMb: 48 },
-    thorough: { label: "Thorough", rounds: 5, probes: 10, downloads: 2, bytesPerDownload: 12 * 1024 * 1024, estimatedMb: 120 }
+    light: { label: "Light", rounds: 2, downloadRounds: 1, probes: 6, downloads: 2, bytesPerDownload: 16 * 1024 * 1024, estimatedMb: 32 },
+    standard: { label: "Standard", rounds: 3, downloadRounds: 2, probes: 8, downloads: 2, bytesPerDownload: 32 * 1024 * 1024, estimatedMb: 128 },
+    thorough: { label: "Thorough", rounds: 5, downloadRounds: 3, probes: 10, downloads: 3, bytesPerDownload: 32 * 1024 * 1024, estimatedMb: 288 }
   };
 
   const PROBE_TIMEOUT_MS = 4000;
+  const DOWNLOAD_RAMP_BYTES = 512 * 1024;
   const state = { running: false, cancelled: false, controllers: new Set(), backgrounded: false, visibilityHandler: null };
   const elements = {};
 
@@ -65,6 +66,11 @@
   function setProgress(value) { elements.progressBar.style.transform = `scaleX(${Math.max(0, Math.min(1, value))})`; }
   function abortError() { return new DOMException("Test stopped.", "AbortError"); }
   function ensureActive() { if (state.cancelled) throw abortError(); }
+  function endpointError(prefix, response) {
+    const error = new Error(`${prefix} returned ${response.status}.`);
+    error.status = response.status;
+    return error;
+  }
 
   async function timedFetch(url, timeoutMs) {
     ensureActive();
@@ -74,7 +80,7 @@
     const started = performance.now();
     try {
       const response = await fetch(url, { cache: "no-store", signal: controller.signal });
-      if (!response.ok) throw new Error(`Endpoint returned ${response.status}.`);
+      if (!response.ok) throw endpointError("Endpoint", response);
       await response.arrayBuffer();
       return performance.now() - started;
     } finally {
@@ -89,6 +95,7 @@
       return { ok: true, ms };
     } catch (error) {
       if (state.cancelled) throw abortError();
+      if (error && error.status === 429) throw error;
       return { ok: false, ms: NaN };
     }
   }
@@ -99,11 +106,12 @@
     const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS * 2);
     try {
       const response = await fetch(`${endpoint("dns")}?t=${Date.now()}-${Math.random()}`, { cache: "no-store", signal: controller.signal });
-      if (!response.ok) throw new Error(`DNS endpoint returned ${response.status}.`);
+      if (!response.ok) throw endpointError("DNS endpoint", response);
       const result = await response.json();
       return Number(result.resolverMs);
     } catch (error) {
       if (state.cancelled) throw abortError();
+      if (error && error.status === 429) throw error;
       return NaN;
     } finally {
       clearTimeout(timeout);
@@ -114,33 +122,53 @@
   async function readDownload(bytes, sampleSink) {
     const controller = new AbortController();
     state.controllers.add(controller);
-    const started = performance.now();
     let received = 0;
+    let measuredBytes = 0;
     let sampleBytes = 0;
-    let sampleStarted = started;
+    let measurementStarted = NaN;
+    let sampleStarted = NaN;
 
     try {
       const url = `${endpoint("download")}?bytes=${bytes}&t=${Date.now()}-${Math.random()}`;
       const response = await fetch(url, { cache: "no-store", signal: controller.signal });
-      if (!response.ok || !response.body) throw new Error(`Download endpoint returned ${response.status}.`);
+      if (!response.ok) throw endpointError("Download endpoint", response);
+      if (!response.body) throw new Error("Download response did not contain a readable stream.");
       const reader = response.body.getReader();
       while (true) {
         ensureActive();
         const result = await reader.read();
         if (result.done) break;
         received += result.value.byteLength;
-        sampleBytes += result.value.byteLength;
         const now = performance.now();
+
+        if (!Number.isFinite(measurementStarted)) {
+          if (received >= DOWNLOAD_RAMP_BYTES) {
+            measurementStarted = now;
+            sampleStarted = now;
+          }
+          continue;
+        }
+
+        measuredBytes += result.value.byteLength;
+        sampleBytes += result.value.byteLength;
         const elapsed = now - sampleStarted;
-        if (elapsed >= 100 || sampleBytes >= 1024 * 1024) {
+        if (elapsed >= 250) {
           sampleSink.push((sampleBytes * 8) / (elapsed / 1000) / 1000000);
           sampleBytes = 0;
           sampleStarted = now;
         }
       }
       const ended = performance.now();
-      if (sampleBytes > 0 && ended > sampleStarted) sampleSink.push((sampleBytes * 8) / ((ended - sampleStarted) / 1000) / 1000000);
-      return { bytes: received, durationMs: ended - started, mbps: (received * 8) / ((ended - started) / 1000) / 1000000 };
+      if (!Number.isFinite(measurementStarted)) measurementStarted = ended;
+      if (sampleBytes > 0 && ended - sampleStarted >= 75) sampleSink.push((sampleBytes * 8) / ((ended - sampleStarted) / 1000) / 1000000);
+      const durationMs = Math.max(0.01, ended - measurementStarted);
+      return {
+        bytes: measuredBytes,
+        durationMs,
+        startedAt: measurementStarted,
+        endedAt: ended,
+        mbps: (measuredBytes * 8) / (durationMs / 1000) / 1000000
+      };
     } finally {
       state.controllers.delete(controller);
     }
@@ -161,7 +189,8 @@
     const downloadResults = await completion;
     if (!loadedProbes.length) loadedProbes.push(await runProbe());
     const totalBytes = downloadResults.reduce((sum, item) => sum + item.bytes, 0);
-    const wallMs = Math.max(...downloadResults.map((item) => item.durationMs));
+    const wallMs = Math.max(0.01, Math.max(...downloadResults.map((item) => item.endedAt)) - Math.min(...downloadResults.map((item) => item.startedAt)));
+    if (throughputSamples.length < 3) throughputSamples.push(...downloadResults.map((item) => item.mbps));
     return {
       mbps: (totalBytes * 8) / (wallMs / 1000) / 1000000,
       throughputSamples,
@@ -169,7 +198,7 @@
     };
   }
 
-  async function runRound(profile, index, total) {
+  async function runRound(profile, index, total, measureLoad) {
     setStatus(`Round ${index + 1} of ${total} · idle latency`);
     const idleProbes = [];
     for (let i = 0; i < profile.probes; i += 1) {
@@ -181,8 +210,11 @@
     setStatus(`Round ${index + 1} of ${total} · resolver`);
     const dnsMs = await measureDns();
     setProgress((index + 0.43) / total);
-    setStatus(`Round ${index + 1} of ${total} · download under load`);
-    const loaded = await measureUnderLoad(profile);
+    let loaded = { mbps: NaN, throughputSamples: [], probes: [] };
+    if (measureLoad) {
+      setStatus(`Round ${index + 1} of ${total} · download under load`);
+      loaded = await measureUnderLoad(profile);
+    }
     setProgress((index + 1) / total);
 
     const idleSuccess = idleProbes.filter((item) => item.ok).map((item) => item.ms);
@@ -273,7 +305,7 @@
 
   function updateProfileNote() {
     const profile = PROFILES[elements.profile.value];
-    elements.dataNote.textContent = `${profile.label} uses up to approximately ${profile.estimatedMb} MB over ${profile.rounds} rounds.`;
+    elements.dataNote.textContent = `${profile.label} uses up to approximately ${profile.estimatedMb} MB over ${profile.rounds} latency and ${profile.downloadRounds} load rounds.`;
   }
 
   function updateControls(running) {
@@ -303,12 +335,15 @@
 
     try {
       await timedFetch(`${endpoint("ping")}?warmup=${Date.now()}`, PROBE_TIMEOUT_MS);
-      for (let index = 0; index < profile.rounds; index += 1) rounds.push(await runRound(profile, index, profile.rounds));
+      for (let index = 0; index < profile.rounds; index += 1) {
+        rounds.push(await runRound(profile, index, profile.rounds, index < profile.downloadRounds));
+      }
       const result = aggregateRounds(rounds);
       render(result, rounds);
       setStatus(state.backgrounded ? "Complete · tab was backgrounded; rerun for best accuracy" : "Complete");
     } catch (error) {
       if (error && error.name === "AbortError") setStatus("Stopped");
+      else if (error && String(error.message).includes("429")) setStatus("Rate limit reached · please wait one minute");
       else setStatus("Test service unavailable · check the Cloudflare Worker route");
     } finally {
       state.running = false;

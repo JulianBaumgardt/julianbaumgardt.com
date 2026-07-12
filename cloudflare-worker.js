@@ -1,4 +1,4 @@
-const MAX_DOWNLOAD_BYTES = 16 * 1024 * 1024;
+const MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
 const CHUNK_BYTES = 256 * 1024;
 const headers = {
   "Access-Control-Allow-Origin": "https://julianbaumgardt.com",
@@ -16,6 +16,18 @@ function responseHeaders(extra) {
 function isAllowedRequest(request) {
   const origin = request.headers.get("Origin");
   return !origin || origin === "https://julianbaumgardt.com" || origin === "https://www.julianbaumgardt.com";
+}
+
+function rateLimitKey(request, scope) {
+  const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
+  return `${scope}:${clientIp}`;
+}
+
+function rateLimitedResponse() {
+  return new Response("Rate limit exceeded", {
+    status: 429,
+    headers: responseHeaders({ "Content-Type": "text/plain; charset=utf-8", "Retry-After": "60" })
+  });
 }
 
 function createDownloadStream(totalBytes) {
@@ -46,10 +58,13 @@ async function handleDns() {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: responseHeaders() });
     if (request.method !== "GET") return new Response("Method not allowed", { status: 405, headers: responseHeaders() });
     if (!isAllowedRequest(request)) return new Response("Forbidden", { status: 403, headers: responseHeaders() });
+
+    const requestLimit = await env.REQUEST_LIMITER.limit({ key: rateLimitKey(request, "request") });
+    if (!requestLimit.success) return rateLimitedResponse();
 
     const url = new URL(request.url);
     if (url.pathname === "/network-test/ping") {
@@ -57,6 +72,8 @@ export default {
     }
 
     if (url.pathname === "/network-test/download") {
+      const downloadLimit = await env.DOWNLOAD_LIMITER.limit({ key: rateLimitKey(request, "download") });
+      if (!downloadLimit.success) return rateLimitedResponse();
       const requested = Number.parseInt(url.searchParams.get("bytes") || "0", 10);
       const totalBytes = Math.max(64 * 1024, Math.min(MAX_DOWNLOAD_BYTES, Number.isFinite(requested) ? requested : 1024 * 1024));
       return new Response(createDownloadStream(totalBytes), {

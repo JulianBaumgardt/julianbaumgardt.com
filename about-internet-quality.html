@@ -50,9 +50,9 @@
 
       <section><h2>Methodology</h2><ul>
         <li><strong>Warm-up is discarded.</strong> An initial request establishes the route before measured rounds begin.</li>
-        <li><strong>Multiple rounds.</strong> Light runs 2 rounds, Standard 3, and Thorough 5. Final metrics use medians so one unusually fast or slow round is less influential.</li>
+        <li><strong>Multiple rounds.</strong> Light runs 2 latency and 1 load round, Standard runs 3 latency and 2 load rounds, and Thorough runs 5 latency and 3 load rounds. Final metrics use medians so one unusually fast or slow round is less influential.</li>
         <li><strong>Observed spread.</strong> Spread is the largest round deviation from the median. Labels describe the actual run and are not laboratory confidence intervals.</li>
-        <li><strong>Concurrent load.</strong> Standard and Thorough modes use two simultaneous downloads while latency probes run, exposing queueing delay that a single speed number can hide.</li>
+        <li><strong>Concurrent load.</strong> The tester uses multiple simultaneous downloads while latency probes run, exposing queueing delay that a single speed number can hide. It discards the first 512 KiB of each stream from throughput timing so request startup and connection ramp-up do not unfairly reduce fast-connection results.</li>
         <li><strong>User-controlled data.</strong> The page estimates maximum data use before the test and never starts automatically.</li>
         <li><strong>Abortable work.</strong> Stop cancels active fetches, and background-tab use is reported because browsers may throttle hidden pages.</li>
       </ul></section>
@@ -73,7 +73,8 @@
       </ul></section>
 
       <section><h2>Free-Plan Safeguards</h2><ul>
-        <li>The Worker accepts only small probes, resolver checks, and downloads capped at 16 MiB per request.</li>
+        <li>The Worker accepts only small probes, resolver checks, and downloads capped at 32 MiB per request.</li>
+        <li>Cloudflare-native edge counters limit each client to 300 total test requests and 18 bandwidth-heavy downloads per minute. These counters are server-side and cannot be bypassed by editing the public page code.</li>
         <li>Responses disable browser and CDN caching, use identity encoding, and permit only this site's origin.</li>
         <li>The Worker performs minimal work within the free plan's fixed 10 ms CPU budget, with all statistics calculated in the browser.</li>
         <li>If the endpoint or daily allowance is unavailable, the page stops with a clear service message instead of inventing a result.</li>
