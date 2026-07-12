@@ -1,4 +1,4 @@
-# Changelog
+## Changelog
 
 ## 2026-07-08 Update 2.0
 
@@ -37,7 +37,7 @@
 
 ## 2026-07-10 Update 3.0
 
-### W11 Optimiser 1.1
+## W11 Optimiser 1.1
 
 - Changed Safe Optimise to create a dedicated temporary power plan for each run.
 - Original Windows power plans are no longer edited by the optimiser.
@@ -54,7 +54,7 @@
 - Added JSON syntax highlighting and copy fallback support to the code viewer.
 - Added `.gitignore` rules for macOS metadata and temporary files.
 
-### CPU Benchmark
+## CPU Benchmark
 
 - Added worker startup, synchronized-start, and long-round timeouts so failed worker runs show a useful error instead of hanging.
 - Added Cloudflare deployment headers for cross-origin isolation, enabling the more precise SharedArrayBuffer and Atomics start barrier.
@@ -108,3 +108,16 @@
 - Added HTTP 429 handling and a clear one-minute retry message.
 - Added regression coverage for download caps, profiles and rate-limit responses.
 - Updated the browser cache version so the improved tester loads immediately after deployment.
+
+## 2026-07-12 Update 4.2
+
+## WiFi Tester 1.1.1
+
+- Renamed Internet Quality Tester to WiFi Tester.
+- Updated the project name across the homepage, tester, methodology page and source viewer.
+- Removed the Connection Suitability section and its rating cards.
+- Removed the unused video-call, gaming, streaming and large-download scoring logic.
+- Fixed NaN% appearing in download and loaded-latency spread results.
+- Updated spread calculations to ignore rounds without applicable measurements.
+- Added regression checks to prevent the NaN% error from returning.
+- Updated the browser cache version so visitors receive the corrected tester immediately.
