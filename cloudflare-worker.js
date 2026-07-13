@@ -1,21 +1,30 @@
 const MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
+const DEFAULT_DOWNLOAD_BYTES = 1024 * 1024;
 const CHUNK_BYTES = 256 * 1024;
+const PRIMARY_ORIGIN = "https://julianbaumgardt.com";
+const ALLOWED_ORIGINS = new Set([PRIMARY_ORIGIN, "https://www.julianbaumgardt.com"]);
 const headers = {
-  "Access-Control-Allow-Origin": "https://julianbaumgardt.com",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   "CDN-Cache-Control": "no-store",
-  "X-Content-Type-Options": "nosniff",
-  "Timing-Allow-Origin": "https://julianbaumgardt.com"
+  "X-Content-Type-Options": "nosniff"
 };
 
-function responseHeaders(extra) {
-  return new Headers({ ...headers, ...extra });
+function responseHeaders(request, extra) {
+  const requestOrigin = request.headers.get("Origin");
+  const allowOrigin = ALLOWED_ORIGINS.has(requestOrigin) ? requestOrigin : PRIMARY_ORIGIN;
+  return new Headers({
+    ...headers,
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Timing-Allow-Origin": allowOrigin,
+    "Vary": "Origin",
+    ...extra
+  });
 }
 
 function isAllowedRequest(request) {
   const origin = request.headers.get("Origin");
-  return !origin || origin === "https://julianbaumgardt.com" || origin === "https://www.julianbaumgardt.com";
+  return !origin || ALLOWED_ORIGINS.has(origin);
 }
 
 function rateLimitKey(request, scope) {
@@ -23,10 +32,10 @@ function rateLimitKey(request, scope) {
   return `${scope}:${clientIp}`;
 }
 
-function rateLimitedResponse() {
+function rateLimitedResponse(request) {
   return new Response("Rate limit exceeded", {
     status: 429,
-    headers: responseHeaders({ "Content-Type": "text/plain; charset=utf-8", "Retry-After": "60" })
+    headers: responseHeaders(request, { "Content-Type": "text/plain; charset=utf-8", "Retry-After": "60" })
   });
 }
 
@@ -47,45 +56,46 @@ function createDownloadStream(totalBytes) {
   });
 }
 
-async function handleDns() {
+async function handleDns(request) {
   const nonce = crypto.randomUUID().replace(/-/g, "");
   const url = `https://cloudflare-dns.com/dns-query?name=${nonce}.invalid&type=A`;
   const started = performance.now();
   const upstream = await fetch(url, { headers: { Accept: "application/dns-json" }, cf: { cacheTtl: 0, cacheEverything: false } });
   await upstream.arrayBuffer();
   const resolverMs = performance.now() - started;
-  return Response.json({ resolverMs, scope: "Cloudflare edge resolver" }, { headers: responseHeaders({ "Content-Type": "application/json; charset=utf-8" }) });
+  return Response.json({ resolverMs, scope: "Cloudflare edge resolver" }, { headers: responseHeaders(request, { "Content-Type": "application/json; charset=utf-8" }) });
 }
 
 export default {
   async fetch(request, env) {
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: responseHeaders() });
-    if (request.method !== "GET") return new Response("Method not allowed", { status: 405, headers: responseHeaders() });
-    if (!isAllowedRequest(request)) return new Response("Forbidden", { status: 403, headers: responseHeaders() });
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: responseHeaders(request) });
+    if (request.method !== "GET") return new Response("Method not allowed", { status: 405, headers: responseHeaders(request) });
+    if (!isAllowedRequest(request)) return new Response("Forbidden", { status: 403, headers: responseHeaders(request) });
 
     const requestLimit = await env.REQUEST_LIMITER.limit({ key: rateLimitKey(request, "request") });
-    if (!requestLimit.success) return rateLimitedResponse();
+    if (!requestLimit.success) return rateLimitedResponse(request);
 
     const url = new URL(request.url);
     if (url.pathname === "/network-test/ping") {
-      return new Response("ok", { headers: responseHeaders({ "Content-Type": "text/plain; charset=utf-8", "Server-Timing": "edge;dur=0" }) });
+      return new Response("ok", { headers: responseHeaders(request, { "Content-Type": "text/plain; charset=utf-8", "Server-Timing": "edge;dur=0" }) });
     }
 
     if (url.pathname === "/network-test/download") {
       const downloadLimit = await env.DOWNLOAD_LIMITER.limit({ key: rateLimitKey(request, "download") });
-      if (!downloadLimit.success) return rateLimitedResponse();
-      const requested = Number.parseInt(url.searchParams.get("bytes") || "0", 10);
-      const totalBytes = Math.max(64 * 1024, Math.min(MAX_DOWNLOAD_BYTES, Number.isFinite(requested) ? requested : 1024 * 1024));
+      if (!downloadLimit.success) return rateLimitedResponse(request);
+      const rawBytes = url.searchParams.get("bytes");
+      const requested = rawBytes === null ? DEFAULT_DOWNLOAD_BYTES : Number.parseInt(rawBytes, 10);
+      const totalBytes = Math.max(64 * 1024, Math.min(MAX_DOWNLOAD_BYTES, Number.isFinite(requested) ? requested : DEFAULT_DOWNLOAD_BYTES));
       return new Response(createDownloadStream(totalBytes), {
-        headers: responseHeaders({ "Content-Type": "application/octet-stream", "Content-Length": String(totalBytes), "Content-Encoding": "identity" })
+        headers: responseHeaders(request, { "Content-Type": "application/octet-stream", "Content-Length": String(totalBytes), "Content-Encoding": "identity" })
       });
     }
 
     if (url.pathname === "/network-test/dns") {
-      try { return await handleDns(); }
-      catch (_) { return new Response("DNS timing unavailable", { status: 503, headers: responseHeaders() }); }
+      try { return await handleDns(request); }
+      catch (_) { return new Response("DNS timing unavailable", { status: 503, headers: responseHeaders(request) }); }
     }
 
-    return new Response("Not found", { status: 404, headers: responseHeaders() });
+    return new Response("Not found", { status: 404, headers: responseHeaders(request) });
   }
 };

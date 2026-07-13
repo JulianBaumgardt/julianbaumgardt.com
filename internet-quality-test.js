@@ -106,11 +106,25 @@ async function testWorker() {
   assert.equal(ping.status, 200);
   assert.equal(await ping.text(), "ok");
   assert.equal(ping.headers.get("cache-control"), "no-store, no-cache, must-revalidate, proxy-revalidate");
+  assert.equal(ping.headers.get("access-control-allow-origin"), "https://julianbaumgardt.com");
+  assert.equal(ping.headers.get("timing-allow-origin"), "https://julianbaumgardt.com");
+
+  const wwwPing = await handler(new Request("https://www.julianbaumgardt.com/network-test/ping", {
+    headers: { Origin: "https://www.julianbaumgardt.com" }
+  }), allowEnv);
+  assert.equal(wwwPing.status, 200);
+  assert.equal(wwwPing.headers.get("access-control-allow-origin"), "https://www.julianbaumgardt.com");
+  assert.equal(wwwPing.headers.get("timing-allow-origin"), "https://www.julianbaumgardt.com");
+  assert.equal(wwwPing.headers.get("vary"), "Origin");
 
   const download = await handler(new Request("https://julianbaumgardt.com/network-test/download?bytes=1048576"), allowEnv);
   assert.equal(download.status, 200);
   assert.equal((await download.arrayBuffer()).byteLength, 1048576);
   assert.equal(download.headers.get("content-encoding"), "identity");
+
+  const defaultDownload = await handler(new Request("https://julianbaumgardt.com/network-test/download"), allowEnv);
+  assert.equal(Number(defaultDownload.headers.get("content-length")), 1024 * 1024);
+  assert.equal((await defaultDownload.arrayBuffer()).byteLength, 1024 * 1024);
 
   const capped = await handler(new Request("https://julianbaumgardt.com/network-test/download?bytes=999999999"), allowEnv);
   assert.equal(Number(capped.headers.get("content-length")), 32 * 1024 * 1024);
@@ -127,7 +141,97 @@ async function testWorker() {
   assert.equal(limited.headers.get("retry-after"), "60");
 }
 
-testWorker().then(() => console.log("internet quality tests passed")).catch((error) => {
+async function testStopDuringDownload() {
+  const ids = ["status", "progress-bar", "profile-select", "run-test", "stop-test", "data-note", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "details-content"];
+  const fakeElements = Object.fromEntries(ids.map((id) => [id, {
+    textContent: "",
+    innerHTML: "",
+    disabled: false,
+    value: id === "profile-select" ? "light" : "",
+    style: {},
+    listeners: {},
+    addEventListener(type, listener) { this.listeners[type] = listener; }
+  }]));
+
+  let readyHandler = null;
+  let downloadsStarted = 0;
+  let signalLoadedProbe;
+  const loadedProbeStarted = new Promise((resolve) => { signalLoadedProbe = resolve; });
+
+  function waitForAbort(signal) {
+    return new Promise((_, reject) => {
+      const rejectAbort = () => reject(new DOMException("The operation was aborted.", "AbortError"));
+      if (signal.aborted) rejectAbort();
+      else signal.addEventListener("abort", rejectAbort, { once: true });
+    });
+  }
+
+  const cancellationContext = {
+    console,
+    window: {},
+    document: {
+      hidden: false,
+      addEventListener(type, listener) { if (type === "DOMContentLoaded") readyHandler = listener; },
+      removeEventListener() {},
+      getElementById(id) { return fakeElements[id] || null; }
+    },
+    fetch: async (url, options = {}) => {
+      const target = String(url);
+      if (target.includes("/download")) {
+        downloadsStarted += 1;
+        return waitForAbort(options.signal);
+      }
+      if (target.includes("/dns")) {
+        return Response.json({ resolverMs: 5 });
+      }
+      if (target.includes("/ping")) {
+        if (downloadsStarted > 0) {
+          signalLoadedProbe();
+          return waitForAbort(options.signal);
+        }
+        return new Response("ok");
+      }
+      throw new Error(`Unexpected test URL: ${target}`);
+    },
+    AbortController,
+    Response,
+    Number,
+    Math,
+    Date,
+    DOMException,
+    performance,
+    setTimeout,
+    clearTimeout
+  };
+
+  vm.createContext(cancellationContext);
+  vm.runInContext(source, cancellationContext, { filename: "internet-quality.js" });
+  assert.equal(typeof readyHandler, "function");
+  readyHandler();
+
+  const unhandled = [];
+  const recordUnhandled = (reason) => { unhandled.push(reason); };
+  process.on("unhandledRejection", recordUnhandled);
+  try {
+    const runPromise = fakeElements["run-test"].listeners.click();
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Loaded probe did not start.")), 2000);
+      loadedProbeStarted.then(() => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+    fakeElements["stop-test"].listeners.click();
+    await runPromise;
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(fakeElements.status.textContent, "Stopped");
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.removeListener("unhandledRejection", recordUnhandled);
+  }
+}
+
+Promise.all([testWorker(), testStopDuringDownload()]).then(() => console.log("internet quality tests passed")).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

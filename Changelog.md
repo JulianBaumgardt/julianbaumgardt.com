@@ -135,3 +135,17 @@
 - Added direct code-viewer links to filenames on all three project information pages.
 - Renamed WiFi Tester to Internet Tester to reflect support for WiFi, Ethernet, 4G and 5G connections.
 - Removed duplicate divider lines from CPU Benchmark and Internet Tester while retaining their progress indicators.
+
+## 2026-07-13 Update 4.4 HotFix
+
+## Internet Tester
+
+- Fixed origin headers for the www. domain.
+- Fixed the default download endpoint returning 64 KB instead of 1 MB.
+- Fixed a console error when stopping an active download test.
+- Preserved the existing request and download rate limits.
+- Added regression coverage for origins, default downloads, and cancellation.
+- Removed the explanatory PowerShell comment block from w11-optimiser.ps1.
+- Removed setup comments from w11-optimiser-tests.ps1.
+- Removed an inline comment from internet-quality.js.
+- Rebuilt w11-optimiser.zip so the downloadable package contains the cleaned files.

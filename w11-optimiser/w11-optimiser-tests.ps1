@@ -1,6 +1,3 @@
-# Requires Pester 5 or later. Run from Windows PowerShell with:
-# Invoke-Pester .\w11-optimiser-tests.ps1
-
 $scriptPath = Join-Path $PSScriptRoot "w11-optimiser.ps1"
 $source = Get-Content -Path $scriptPath -Raw -ErrorAction Stop
 

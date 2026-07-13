@@ -180,6 +180,7 @@
     const downloads = Array.from({ length: profile.downloads }, () => readDownload(profile.bytesPerDownload, throughputSamples));
     let finished = false;
     const completion = Promise.all(downloads).finally(() => { finished = true; });
+    void completion.catch(() => {});
     const loadedProbes = [];
 
     await new Promise((resolve) => setTimeout(resolve, 80));
