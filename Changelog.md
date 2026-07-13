@@ -149,3 +149,23 @@
 - Removed setup comments from w11-optimiser-tests.ps1.
 - Removed an inline comment from internet-quality.js.
 - Rebuilt w11-optimiser.zip so the downloadable package contains the cleaned files.
+
+## 2026-07-13 Update 4.5 Visuals and HotFix
+
+## Internet Tester UI
+
+- Updated the header layout to more closely match CPU Benchmark.
+- Increased the Internet Tester heading size.
+- Improved responsive scaling for desktop and mobile screens.
+- Prevented the Stability rating from wrapping onto multiple lines.
+- Capitalised all words in test status messages.
+- Moved estimated data usage into the Browser Estimate box.
+- Added usage details for Light, Standard and Thorough tests.
+
+## W11 Optimiser 1.1.2
+
+- Fixed an outdated SHA-256 value in the release manifest.
+- Matched the manifest checksum with the current PowerShell script.
+- Rebuilt and verified the downloadable ZIP.
+- Added a regression test to detect future manifest checksum mismatches.
+- Fixed the “Downloaded script hash did not match” error.

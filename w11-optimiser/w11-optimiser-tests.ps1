@@ -1,5 +1,7 @@
 $scriptPath = Join-Path $PSScriptRoot "w11-optimiser.ps1"
+$manifestPath = Join-Path $PSScriptRoot "w11-optimiser.manifest.json"
 $source = Get-Content -Path $scriptPath -Raw -ErrorAction Stop
+$manifest = Get-Content -Path $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json
 
 Describe "W11 Optimiser safety regressions" {
     It "uses a dedicated power plan rather than modifying an existing plan" {
@@ -27,5 +29,10 @@ Describe "W11 Optimiser safety regressions" {
     It "delimits interpolated variables that are immediately followed by a colon" {
         $unsafeVariableBeforeColon = '\$(?!(?:env|script|global|local|private):)[A-Za-z_][A-Za-z0-9_]*:'
         $source | Should -Not -Match $unsafeVariableBeforeColon
+    }
+
+    It "matches the SHA-256 published in the release manifest" {
+        $actualHash = (Get-FileHash -Path $scriptPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $actualHash | Should -Be $manifest.sha256.ToLowerInvariant()
     }
 }

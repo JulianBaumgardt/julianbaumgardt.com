@@ -60,8 +60,18 @@ assert.doesNotMatch(html, /Connection Suitability/);
 assert.doesNotMatch(source, /function assess\(/);
 assert.match(html, /Browser estimate:/);
 assert.match(html, /may be less precise than a dedicated speed-test protocol/);
+assert.match(html, /Estimated data use:/);
+assert.match(html, /Light uses about 32 MB across 2 latency rounds and 1 load round\./);
+assert.match(html, /Standard uses about 128 MB across 3 latency rounds and 2 load rounds\./);
+assert.match(html, /Thorough uses about 288 MB across 5 latency rounds and 3 load rounds\./);
 assert.match(html, /About This Project/);
 assert.match(html, /View Source Code/);
+assert.match(html, /#stability-score \{[^}]*white-space: nowrap;/);
+assert.match(html, /grid-template-columns: minmax\(0, 1fr\) minmax\(270px, 336px\);/);
+assert.match(html, /\.controls \{ width: min\(300px, 100%\);/);
+assert.match(html, /h1 \{[\s\S]*?white-space: nowrap;[\s\S]*?font-size: clamp\(40px, 5\.6vw, 86px\);/);
+assert.ok(html.indexOf("Estimated data use:") > html.indexOf("Browser estimate:"), "data usage information should share the browser estimate box");
+assert.doesNotMatch(source, /updateProfileNote/);
 assert.match(homepage, /internet-quality\.html/);
 assert.match(viewer, /cloudflare-worker\.js/);
 for (const fileName of fs.readdirSync(root).filter((fileName) => fileName.endsWith(".html"))) {
@@ -78,6 +88,10 @@ assert.match(wrangler, /julianbaumgardt\.com\/network-test\/\*/);
 assert.match(wrangler, /"ratelimits"/);
 assert.equal(hooks.profiles.standard.downloadRounds, 2);
 assert.equal(hooks.profiles.standard.estimatedMb, 128);
+assert.match(source, /Round \$\{index \+ 1\} Of \$\{total\} · Idle Latency/);
+assert.match(source, /Round \$\{index \+ 1\} Of \$\{total\} · Download Under Load/);
+assert.match(source, /Rate Limit Reached · Please Wait One Minute/);
+assert.match(source, /Test Service Unavailable · Check The Cloudflare Worker Route/);
 assert.match(source, /detailsContent\.innerHTML = `<table class="round-table">/, "round details should use the fixed table template");
 
 async function testWorker() {

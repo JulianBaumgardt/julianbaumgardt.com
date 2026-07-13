@@ -201,7 +201,7 @@
   }
 
   async function runRound(profile, index, total, measureLoad) {
-    setStatus(`Round ${index + 1} of ${total} · idle latency`);
+    setStatus(`Round ${index + 1} Of ${total} · Idle Latency`);
     const idleProbes = [];
     for (let i = 0; i < profile.probes; i += 1) {
       idleProbes.push(await runProbe());
@@ -209,12 +209,12 @@
       if (i + 1 < profile.probes) await new Promise((resolve) => setTimeout(resolve, 70));
     }
 
-    setStatus(`Round ${index + 1} of ${total} · resolver`);
+    setStatus(`Round ${index + 1} Of ${total} · Resolver`);
     const dnsMs = await measureDns();
     setProgress((index + 0.43) / total);
     let loaded = { mbps: NaN, throughputSamples: [], probes: [] };
     if (measureLoad) {
-      setStatus(`Round ${index + 1} of ${total} · download under load`);
+      setStatus(`Round ${index + 1} Of ${total} · Download Under Load`);
       loaded = await measureUnderLoad(profile);
     }
     setProgress((index + 1) / total);
@@ -280,11 +280,6 @@
     elements.detailsContent.innerHTML = `<table class="round-table"><thead><tr><th>Round</th><th>Idle</th><th>Jitter</th><th>Download</th><th>Loaded</th><th>Consistency</th><th>DNS</th><th>Failed probes</th></tr></thead><tbody>${rounds.map((round, index) => `<tr><td>${index + 1}</td><td>${formatMs(round.idleMs)}</td><td>${formatMs(round.jitterMs)}</td><td>${formatMbps(round.downloadMbps)}</td><td>${formatMs(round.loadedMs)}</td><td>${formatPercent(round.consistency)}</td><td>${formatMs(round.dnsMs)}</td><td>${round.failures} / ${round.attempts}</td></tr>`).join("")}</tbody></table>`;
   }
 
-  function updateProfileNote() {
-    const profile = PROFILES[elements.profile.value];
-    elements.dataNote.textContent = `${profile.label} uses about ${profile.estimatedMb} MB across ${profile.rounds} latency and ${profile.downloadRounds} load rounds.`;
-  }
-
   function updateControls(running) {
     elements.run.disabled = running;
     elements.stop.disabled = !running;
@@ -317,11 +312,11 @@
       }
       const result = aggregateRounds(rounds);
       render(result, rounds);
-      setStatus(state.backgrounded ? "Complete · tab was backgrounded; rerun for best accuracy" : "Complete");
+      setStatus(state.backgrounded ? "Complete · Tab Was Backgrounded; Rerun For Best Accuracy" : "Complete");
     } catch (error) {
       if (error && error.name === "AbortError") setStatus("Stopped");
-      else if (error && String(error.message).includes("429")) setStatus("Rate limit reached · please wait one minute");
-      else setStatus("Test service unavailable · check the Cloudflare Worker route");
+      else if (error && String(error.message).includes("429")) setStatus("Rate Limit Reached · Please Wait One Minute");
+      else setStatus("Test Service Unavailable · Check The Cloudflare Worker Route");
     } finally {
       state.running = false;
       for (const controller of state.controllers) controller.abort();
@@ -333,15 +328,13 @@
   }
 
   function init() {
-    const ids = ["status", "progress-bar", "profile-select", "run-test", "stop-test", "data-note", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "details-content"];
+    const ids = ["status", "progress-bar", "profile-select", "run-test", "stop-test", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "details-content"];
     for (const id of ids) elements[id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = $(id);
     elements.profile = $("profile-select");
     elements.run = $("run-test");
     elements.stop = $("stop-test");
-    elements.profile.addEventListener("change", updateProfileNote);
     elements.run.addEventListener("click", runTest);
     elements.stop.addEventListener("click", stopTest);
-    updateProfileNote();
   }
 
   if (typeof window !== "undefined" && window.__INTERNET_QUALITY_EXPOSE_TESTS__) {

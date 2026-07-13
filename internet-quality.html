@@ -49,23 +49,23 @@
 
     .hero {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
-      align-items: end;
+      grid-template-columns: minmax(0, 1fr) minmax(270px, 336px);
+      align-items: center;
       gap: clamp(28px, 5vw, 70px);
       padding-bottom: 34px;
     }
 
     h1 {
-      max-width: 760px;
       margin: 0;
-      font-size: clamp(48px, 8.1vw, 96px);
+      white-space: nowrap;
+      font-size: clamp(40px, 5.6vw, 86px);
       font-weight: 760;
       line-height: 1;
       letter-spacing: 0;
     }
 
-    .controls { display: grid; gap: 12px; }
-    .control-row { display: grid; grid-template-columns: 1fr 134px; align-items: center; gap: 12px; }
+    .controls { width: min(300px, 100%); display: grid; gap: 12px; }
+    .control-row { display: grid; grid-template-columns: 1fr 112px; align-items: center; gap: 12px; }
     label { color: var(--muted); font-size: 13px; }
 
     select, button {
@@ -84,8 +84,6 @@
     button.stop { color: var(--danger); }
     button:disabled, select:disabled { cursor: not-allowed; opacity: .45; }
     .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .data-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-
     .progress { height: 2px; margin: 28px 0 34px; overflow: hidden; background: var(--line); }
     .progress span { display: block; width: 100%; height: 100%; background: var(--text); transform: scaleX(0); transform-origin: left; transition: transform .2s ease; }
 
@@ -93,6 +91,7 @@
     .score { min-height: 148px; padding: 20px; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; gap: 16px; }
     .score:last-child { border-right: 0; }
     .score strong { display: block; overflow-wrap: anywhere; font-size: clamp(28px, 4vw, 48px); line-height: .95; }
+    #stability-score { white-space: nowrap; overflow-wrap: normal; font-size: clamp(24px, 3.2vw, 44px); }
     .score span, .score small { color: var(--muted); font-size: 13px; }
     .score small { min-height: 18px; line-height: 1.35; }
 
@@ -114,7 +113,10 @@
     .details-empty { color: var(--muted); font-size: 13px; }
 
     .notice { margin: 18px 0 0; padding: 16px 18px; border: 1px solid var(--line); color: #aaa; font-size: 12px; line-height: 1.6; }
+    .notice p { margin: 0; }
     .notice strong { color: var(--text); font-weight: 600; }
+    .notice-data { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .notice-data ul { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
     .useful-links { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--line); }
     .useful-links h2 { margin: 0; color: var(--muted); font-size: 13px; font-weight: 500; }
     .footer-actions { display: flex; flex-wrap: wrap; gap: 14px; padding-top: 20px; }
@@ -124,6 +126,8 @@
     @media (max-width: 800px) {
       .hero, .score-grid, .metrics { grid-template-columns: 1fr; }
       .hero { align-items: start; }
+      h1 { white-space: normal; font-size: clamp(40px, 13vw, 72px); }
+      .controls { width: 100%; }
       .status { max-width: none; text-align: left; }
       .topbar { align-items: start; display: grid; }
       .score { border-right: 0; border-bottom: 1px solid var(--line); }
@@ -157,7 +161,6 @@
           <button class="primary" id="run-test" type="button">Run Test</button>
           <button class="stop" id="stop-test" type="button" disabled>Stop</button>
         </div>
-        <p class="data-note" id="data-note">Standard uses about 128 MB across 3 latency and 2 load rounds.</p>
       </div>
     </section>
 
@@ -184,7 +187,17 @@
       <div class="details-content" id="details-content"><div class="details-empty">No completed run yet.</div></div>
     </details>
 
-    <p class="notice"><strong>Browser estimate:</strong> this is not a native network measurement and may be less precise than a dedicated speed-test protocol. It uses timed HTTPS requests to the nearest Cloudflare edge, not ICMP ping. Loss means failed or timed-out web probes, and DNS timing is measured by the server resolver. Results can be affected by browser scheduling, VPNs, Wi-Fi, caching, other traffic, and background tabs.</p>
+    <aside class="notice" aria-label="Test methodology and estimated data use">
+      <p><strong>Browser estimate:</strong> this is not a native network measurement and may be less precise than a dedicated speed-test protocol. It uses timed HTTPS requests to the nearest Cloudflare edge, not ICMP ping. Loss means failed or timed-out web probes, and DNS timing is measured by the server resolver. Results can be affected by browser scheduling, VPNs, Wi-Fi, caching, other traffic, and background tabs.</p>
+      <div class="notice-data">
+        <strong>Estimated data use:</strong>
+        <ul>
+          <li>Light uses about 32 MB across 2 latency rounds and 1 load round.</li>
+          <li>Standard uses about 128 MB across 3 latency rounds and 2 load rounds.</li>
+          <li>Thorough uses about 288 MB across 5 latency rounds and 3 load rounds.</li>
+        </ul>
+      </div>
+    </aside>
 
     <section class="useful-links" aria-labelledby="useful-links-title">
       <h2 id="useful-links-title">Useful Links</h2>
