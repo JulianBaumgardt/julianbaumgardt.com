@@ -28,9 +28,20 @@ for (const fileName of htmlFiles) {
 
 const headers = fs.readFileSync(path.join(root, "_headers"), "utf8");
 assert.match(headers, /Content-Security-Policy:/);
+assert.match(headers, /script-src[^;]*'wasm-unsafe-eval'/, "CSP should allow WebAssembly compilation without enabling general unsafe-eval");
 assert.match(headers, /frame-ancestors 'none'/);
 assert.match(headers, /Cross-Origin-Opener-Policy: same-origin/);
 assert.match(headers, /Cross-Origin-Embedder-Policy: require-corp/);
+
+const cpuBenchmarkPage = fs.readFileSync(path.join(root, "cpu-benchmark.html"), "utf8");
+assert.doesNotMatch(cpuBenchmarkPage, /\.topbar,\s*\.hero\s*\{\s*display:\s*grid/, "CPU benchmark mobile layout should keep the top bar on one row");
+
+const internetTesterPage = fs.readFileSync(path.join(root, "internet-quality.html"), "utf8");
+assert.doesNotMatch(internetTesterPage, /\.topbar\s*\{[^}]*display:\s*grid/, "Internet Tester mobile layout should keep the top bar on one row");
+
+const homePage = fs.readFileSync(path.join(root, "index.html"), "utf8");
+assert.match(homePage, /<title>Julian Baumgardt — Software Projects<\/title>/, "Homepage should use a descriptive search title");
+assert.match(homePage, /<section class="sites"[^>]*data-nosnippet/, "Homepage navigation should not be used as a search-result snippet");
 
 const optimiserPath = path.join(root, "w11-optimiser", "w11-optimiser.ps1");
 const optimiser = fs.readFileSync(optimiserPath, "utf8");

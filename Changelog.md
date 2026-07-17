@@ -203,3 +203,25 @@
 - Fixed additional mobile layout issues.
 - Improved page metadata and source-viewer behavior.
 - Changed Writing and Contact to noninteractive “Coming Soon” labels.
+
+## Update 4.7 Hotfix
+
+## CPU Benchmark
+
+- Fixed the Content Security Policy blocking WebAssembly compilation.
+- Allowed WebAssembly without enabling general JavaScript unsafe-eval.
+- Moved the mobile “Ready” status to the top-right, opposite “Back To Projects.”
+- Added regression checks for WebAssembly permissions and mobile header layout.
+
+## Internet Tester
+
+- Moved the mobile status indicator to the top-right, opposite “Back To Projects.”
+- Added regression coverage for the mobile header layout.
+
+## Google Indexing
+
+- Added a clearer homepage search title.
+- Improved the homepage meta description.
+- Prevented expandable navigation text from appearing in search-result descriptions.
+- Guided Google toward displaying a concise summary of the site’s software projects.
+- Added regression checks for the new search metadata.
