@@ -1,0 +1,8 @@
+{
+  "name": "julianbaumgardt-site",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node cpu-benchmark-test.js && node internet-quality-test.js && node site-regression-test.js"
+  }
+}

@@ -77,6 +77,10 @@ assert.equal(hooks.maxDeviationPercent([90, 100, 110]), 10);
 assert.equal(hooks.maxDeviationPercent([100, 200, 300, 400]), 60);
 assert.equal(hooks.maxDeviationPercent([0, 0, 0]), 0);
 assert.equal(hooks.maxDeviationPercent([]), 0);
+assert.equal(hooks.trendPercent([100, 105, 110]), 100 / 105 * 10);
+assert.equal(hooks.getRunConfidence({ single: 2, multi: 3, scaling: 4, fixedSpeedup: 5 }, 2, false), "High");
+assert.equal(hooks.getRunConfidence({ single: 2, multi: 16, scaling: 4, fixedSpeedup: 5 }, 2, false), "Low");
+assert.equal(hooks.getRunConfidence({ single: 2, multi: 3, scaling: 4, fixedSpeedup: 5 }, 2, true), "Low");
 
 assert.deepEqual(
   Array.from(hooks.pairedRatios([10, 20, 30], [2, 4, 5])),
@@ -139,6 +143,8 @@ assert.match(headers, /Cross-Origin-Opener-Policy: same-origin/);
 assert.match(headers, /Cross-Origin-Embedder-Policy: require-corp/);
 assert.match(html, /About This Project/);
 assert.match(html, /View Source Code/);
+assert.match(html, /id="progress" role="progressbar"/);
+assert.match(html, /white-space: normal;/);
 
 assert.equal(embeddedWorker[1].trim(), worker.trim(), "embedded worker fallback should match cpu-worker.js");
 

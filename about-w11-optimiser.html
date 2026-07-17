@@ -231,6 +231,9 @@
               <li><strong>Backup before edit.</strong> Registry and state are saved before anything changes.</li>
               <li><strong>Backup failure stops the run.</strong> If an existing registry key cannot be exported, SafeOptimize exits before it changes settings.</li>
               <li><strong>Property-level undo.</strong> Keys that were absent before a run only have the optimiser-created values removed; undo never recursively deletes a registry path.</li>
+              <li><strong>Validated undo state.</strong> New backups carry a tool marker and schema version; unexpected network registry paths and power-plan names are refused.</li>
+              <li><strong>Truthful run reports.</strong> Each optional step records its actual outcome, so a failed step is shown as a warning rather than an <code>OK</code>.</li>
+              <li><strong>Windows 11 preflight.</strong> SafeOptimize verifies a Windows 11 client build before it offers to make changes.</li>
               <li><strong>Dedicated power plan.</strong> SafeOptimize adjusts a run-specific plan instead of modifying an existing Windows plan.</li>
               <li><strong>Preview changes nothing.</strong> No restore point, backup, or registry/power/adapter change.</li>
               <li><strong>Confirmation required.</strong> Both the launcher and direct PowerShell path ask before SafeOptimize or UndoLatest runs.</li>

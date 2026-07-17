@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A transparent multi-round WebAssembly CPU benchmark with single-core, multi-core, scaling, confidence, and timing details.">
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="site-typography.css">
   <title>CPU Benchmark</title>
@@ -78,6 +79,10 @@
       align-items: center;
       gap: clamp(28px, 5vw, 70px);
       padding-bottom: 34px;
+    }
+
+    .hero > * {
+      min-width: 0;
     }
 
     h1 {
@@ -327,6 +332,7 @@
     .details-block.wide {
       grid-column: 1 / -1;
       border-right: 0;
+      overflow-x: auto;
     }
 
     .details-block h2 {
@@ -406,6 +412,7 @@
       }
 
       h1 {
+        white-space: normal;
         font-size: clamp(40px, 13vw, 72px);
       }
 
@@ -483,7 +490,7 @@
       </div>
     </section>
 
-    <div class="progress" aria-hidden="true">
+    <div class="progress" id="progress" role="progressbar" aria-label="Benchmark progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <span id="progress-bar"></span>
     </div>
 
@@ -550,6 +557,14 @@
       <div class="metric">
         <span>Worker Source</span>
         <strong id="worker-source">--</strong>
+      </div>
+      <div class="metric">
+        <span title="Based on spread, single-core timing drift, and whether the tab stayed in the foreground.">Run Confidence</span>
+        <strong id="run-confidence">--</strong>
+      </div>
+      <div class="metric">
+        <span title="Change from the first to the last measured single-core round. Positive values mean the last round was slower.">Single-Core Drift</span>
+        <strong id="single-core-drift">--</strong>
       </div>
     </section>
 
@@ -790,6 +805,6 @@
   };
 })();
   </script>
-  <script src="cpu-benchmark.js?v=11" defer></script>
+  <script src="cpu-benchmark.js?v=12" defer></script>
 </body>
 </html>

@@ -169,3 +169,37 @@
 - Rebuilt and verified the downloadable ZIP.
 - Added a regression test to detect future manifest checksum mismatches.
 - Fixed the “Downloaded script hash did not match” error.
+
+## 2026-07-17 Update 4.6 Reliability, Security and Accessibility
+
+## CPU Benchmark
+
+- Fixed mobile layout overflow.
+- Added run-confidence ratings and single-core drift detection.
+- Improved progress-bar accessibility and regression coverage.
+
+## Internet Tester
+
+- Added download timeouts and clearer failure messages.
+- Added measurement-confidence and actual data-transfer reporting.
+- Prevented old results from appearing after failed reruns.
+- Improved data-usage and privacy information.
+- Cloudflare Worker
+- Added controlled failure handling, upstream validation and structured logging.
+- Strengthened cross-origin controls and production monitoring.
+- Updated and validated the Worker configuration.
+
+## Windows 11 Optimiser v1.2.0
+
+- Added Windows 11 compatibility checks.
+- Made reports reflect the actual outcome of every optimisation step.
+- Strengthened backup requirements and Undo validation.
+- Synchronized the script, launcher, documentation, manifest and downloadable ZIP.
+
+## Site-Wide Improvements
+
+- Added stronger security headers and browser-permission restrictions.
+- Restored visible keyboard focus and improved reduced-motion support.
+- Fixed additional mobile layout issues.
+- Improved page metadata and source-viewer behavior.
+- Changed Writing and Contact to noninteractive “Coming Soon” labels.

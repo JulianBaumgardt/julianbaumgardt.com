@@ -57,6 +57,9 @@
         <li><strong>Concurrent load.</strong> The tester uses multiple simultaneous downloads while latency probes run, exposing queueing delay that a single speed number can hide. It discards the first 512 KiB of each stream from throughput timing so request startup and connection ramp-up do not unfairly reduce fast-connection results.</li>
         <li><strong>User-controlled data.</strong> The page estimates maximum data use before the test and never starts automatically.</li>
         <li><strong>Abortable work.</strong> Stop cancels active fetches, and background-tab use is reported because browsers may throttle hidden pages.</li>
+        <li><strong>Bounded downloads.</strong> A stalled download is cancelled after two minutes so the page cannot remain stuck indefinitely.</li>
+        <li><strong>Measurement confidence.</strong> The result grades the run from sample duration, sample count, failed probes, observed spread, and whether the tab stayed in the foreground. Very fast transfers can finish too quickly for a high-confidence browser estimate.</li>
+        <li><strong>Actual transfer total.</strong> The results show how much download data the completed run transferred, alongside the estimate shown before starting.</li>
       </ul></section>
 
       <section><h2>Browser And Network Limits</h2><ul>
@@ -72,6 +75,7 @@
         <li>The Worker accepts only small probes, resolver checks, and downloads capped at 32 MiB per request.</li>
         <li>Cloudflare-native edge counters limit each client to 300 total test requests and 18 bandwidth-heavy downloads per minute. These counters are server-side and cannot be bypassed by editing the public page code.</li>
         <li>Responses disable browser and CDN caching, use identity encoding, and permit only this site's origin.</li>
+        <li>The tester sets no cookies and stores no results in local storage. Cloudflare necessarily receives standard connection metadata, and the client IP is used only as the key for the short-lived edge rate limit.</li>
         <li>The Worker performs minimal work within the free plan's fixed 10 ms CPU budget, with all statistics calculated in the browser.</li>
         <li>If the endpoint or daily allowance is unavailable, the page stops with a clear service message instead of inventing a result.</li>
       </ul></section>

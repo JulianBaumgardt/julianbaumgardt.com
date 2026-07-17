@@ -8,6 +8,7 @@
   };
 
   const PROBE_TIMEOUT_MS = 4000;
+  const DOWNLOAD_TIMEOUT_MS = 120000;
   const DOWNLOAD_RAMP_BYTES = 512 * 1024;
   const state = { running: false, cancelled: false, controllers: new Set(), backgrounded: false, visibilityHandler: null };
   const elements = {};
@@ -62,9 +63,17 @@
   function formatMs(value, decimals) { return Number.isFinite(value) ? `${value.toFixed(decimals == null ? (value < 100 ? 1 : 0) : decimals)} ms` : "--"; }
   function formatMbps(value) { return Number.isFinite(value) ? `${value.toFixed(value < 100 ? 1 : 0)} Mbps` : "--"; }
   function formatPercent(value) { return Number.isFinite(value) ? `${value.toFixed(1)}%` : "--"; }
+  function formatBytes(value) {
+    if (!Number.isFinite(value) || value < 0) return "--";
+    return `${(value / (1024 * 1024)).toFixed(value < 100 * 1024 * 1024 ? 1 : 0)} MiB`;
+  }
   function endpoint(path) { return `/network-test/${path}`; }
   function setStatus(text) { elements.status.textContent = text; }
-  function setProgress(value) { elements.progressBar.style.transform = `scaleX(${Math.max(0, Math.min(1, value))})`; }
+  function setProgress(value) {
+    const clamped = Math.max(0, Math.min(1, value));
+    elements.progressBar.style.transform = `scaleX(${clamped})`;
+    elements.progress.setAttribute("aria-valuenow", String(Math.round(clamped * 100)));
+  }
   function abortError() { return new DOMException("Test stopped.", "AbortError"); }
   function ensureActive() { if (state.cancelled) throw abortError(); }
   function endpointError(prefix, response) {
@@ -123,6 +132,7 @@
   async function readDownload(bytes, sampleSink) {
     const controller = new AbortController();
     state.controllers.add(controller);
+    const timeout = setTimeout(() => controller.abort("download-timeout"), DOWNLOAD_TIMEOUT_MS);
     let received = 0;
     let measuredBytes = 0;
     let sampleBytes = 0;
@@ -164,6 +174,7 @@
       if (sampleBytes > 0 && ended - sampleStarted >= 75) sampleSink.push((sampleBytes * 8) / ((ended - sampleStarted) / 1000) / 1000000);
       const durationMs = Math.max(0.01, ended - measurementStarted);
       return {
+        receivedBytes: received,
         bytes: measuredBytes,
         durationMs,
         startedAt: measurementStarted,
@@ -171,6 +182,7 @@
         mbps: (measuredBytes * 8) / (durationMs / 1000) / 1000000
       };
     } finally {
+      clearTimeout(timeout);
       state.controllers.delete(controller);
     }
   }
@@ -195,6 +207,8 @@
     if (throughputSamples.length < 3) throughputSamples.push(...downloadResults.map((item) => item.mbps));
     return {
       mbps: (totalBytes * 8) / (wallMs / 1000) / 1000000,
+      receivedBytes: downloadResults.reduce((sum, item) => sum + item.receivedBytes, 0),
+      durationMs: wallMs,
       throughputSamples,
       probes: loadedProbes
     };
@@ -212,7 +226,7 @@
     setStatus(`Round ${index + 1} Of ${total} · Resolver`);
     const dnsMs = await measureDns();
     setProgress((index + 0.43) / total);
-    let loaded = { mbps: NaN, throughputSamples: [], probes: [] };
+    let loaded = { mbps: NaN, receivedBytes: 0, durationMs: NaN, throughputSamples: [], probes: [] };
     if (measureLoad) {
       setStatus(`Round ${index + 1} Of ${total} · Download Under Load`);
       loaded = await measureUnderLoad(profile);
@@ -228,6 +242,9 @@
       jitterMs: jitter(idleSuccess),
       loadedMs: median(loadedSuccess),
       downloadMbps: loaded.mbps,
+      downloadBytes: loaded.receivedBytes,
+      downloadDurationMs: loaded.durationMs,
+      downloadSamples: loaded.throughputSamples.length,
       consistency: consistencyPercent(loaded.throughputSamples),
       dnsMs,
       attempts,
@@ -254,6 +271,9 @@
       idleSpread: maxDeviationPercent(idleValues),
       loadedSpread: maxDeviationPercent(loadedValues),
       downloadSpread: maxDeviationPercent(downloadValues),
+      downloadBytes: rounds.reduce((sum, round) => sum + (Number.isFinite(round.downloadBytes) ? round.downloadBytes : 0), 0),
+      downloadDurationMs: median(rounds.map((round) => round.downloadDurationMs)),
+      downloadSamples: rounds.reduce((sum, round) => sum + (round.downloadSamples || 0), 0),
       rounds: rounds.length
     };
     result.penaltyMs = result.loadedMs - result.idleMs;
@@ -261,7 +281,13 @@
     return result;
   }
 
-  function render(result, rounds) {
+  function measurementQuality(result, backgrounded) {
+    if (backgrounded || result.lossPercent >= 3 || result.downloadSpread >= 45 || result.downloadDurationMs < 750 || result.downloadSamples < 3) return "Low";
+    if (result.lossPercent > 0 || result.downloadSpread >= 25 || result.downloadDurationMs < 1500 || result.downloadSamples < 6) return "Fair";
+    return "High";
+  }
+
+  function render(result, rounds, backgrounded) {
     elements.latencyScore.textContent = formatMs(result.idleMs);
     elements.downloadScore.textContent = formatMbps(result.downloadMbps);
     elements.loadedScore.textContent = formatMs(result.loadedMs);
@@ -276,8 +302,18 @@
     elements.penaltyMetric.textContent = `+${formatMs(Math.max(0, result.penaltyMs))}`;
     elements.dnsMetric.textContent = formatMs(result.dnsMs);
     elements.roundsMetric.textContent = String(result.rounds);
+    elements.dataMetric.textContent = formatBytes(result.downloadBytes);
+    elements.qualityMetric.textContent = measurementQuality(result, backgrounded);
 
     elements.detailsContent.innerHTML = `<table class="round-table"><thead><tr><th>Round</th><th>Idle</th><th>Jitter</th><th>Download</th><th>Loaded</th><th>Consistency</th><th>DNS</th><th>Failed probes</th></tr></thead><tbody>${rounds.map((round, index) => `<tr><td>${index + 1}</td><td>${formatMs(round.idleMs)}</td><td>${formatMs(round.jitterMs)}</td><td>${formatMbps(round.downloadMbps)}</td><td>${formatMs(round.loadedMs)}</td><td>${formatPercent(round.consistency)}</td><td>${formatMs(round.dnsMs)}</td><td>${round.failures} / ${round.attempts}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  function resetResults() {
+    const scoreIds = ["latencyScore", "downloadScore", "loadedScore", "stabilityScore", "jitterMetric", "lossMetric", "consistencyMetric", "penaltyMetric", "dnsMetric", "roundsMetric", "dataMetric", "qualityMetric"];
+    const noteIds = ["latencySpread", "downloadSpread", "loadedSpread", "stabilityNote"];
+    for (const id of scoreIds) elements[id].textContent = "--";
+    for (const id of noteIds) elements[id].textContent = "Not tested";
+    elements.detailsContent.innerHTML = '<div class="details-empty">No completed run yet.</div>';
   }
 
   function updateControls(running) {
@@ -299,6 +335,7 @@
     state.cancelled = false;
     state.backgrounded = false;
     updateControls(true);
+    resetResults();
     setProgress(0);
     const profile = PROFILES[elements.profile.value];
     const rounds = [];
@@ -311,12 +348,16 @@
         rounds.push(await runRound(profile, index, profile.rounds, index < profile.downloadRounds));
       }
       const result = aggregateRounds(rounds);
-      render(result, rounds);
-      setStatus(state.backgrounded ? "Complete · Tab Was Backgrounded; Rerun For Best Accuracy" : "Complete");
+      render(result, rounds, state.backgrounded);
+      const quality = measurementQuality(result, state.backgrounded);
+      setStatus(state.backgrounded
+        ? "Complete · Tab Was Backgrounded; Rerun For Best Accuracy"
+        : `Complete · ${quality} Measurement Confidence`);
     } catch (error) {
-      if (error && error.name === "AbortError") setStatus("Stopped");
+      if (error && error.name === "AbortError" && state.cancelled) setStatus("Stopped");
       else if (error && String(error.message).includes("429")) setStatus("Rate Limit Reached · Please Wait One Minute");
-      else setStatus("Test Service Unavailable · Check The Cloudflare Worker Route");
+      else if (error && error.name === "AbortError") setStatus("Download Timed Out · Try The Light Test Or Check Your Connection");
+      else setStatus("Test Service Unavailable · Try Again Shortly");
     } finally {
       state.running = false;
       for (const controller of state.controllers) controller.abort();
@@ -328,7 +369,7 @@
   }
 
   function init() {
-    const ids = ["status", "progress-bar", "profile-select", "run-test", "stop-test", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "details-content"];
+    const ids = ["status", "progress", "progress-bar", "profile-select", "run-test", "stop-test", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "data-metric", "quality-metric", "details-content"];
     for (const id of ids) elements[id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = $(id);
     elements.profile = $("profile-select");
     elements.run = $("run-test");
@@ -338,7 +379,7 @@
   }
 
   if (typeof window !== "undefined" && window.__INTERNET_QUALITY_EXPOSE_TESTS__) {
-    window.__internetQualityTest = { median, percentile, jitter, maxDeviationPercent, consistencyPercent, stabilityLabel, aggregateRounds, profiles: PROFILES };
+    window.__internetQualityTest = { median, percentile, jitter, maxDeviationPercent, consistencyPercent, stabilityLabel, measurementQuality, aggregateRounds, profiles: PROFILES };
   }
 
   if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", init);

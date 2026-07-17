@@ -2,7 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "julian-internet-quality",
   "main": "cloudflare-worker.js",
-  "compatibility_date": "2026-07-12",
+  "compatibility_date": "2026-07-17",
+  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "routes": [
     {
@@ -14,6 +15,11 @@
       "zone_name": "julianbaumgardt.com"
     }
   ],
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 0.1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  },
   "ratelimits": [
     {
       "name": "REQUEST_LIMITER",

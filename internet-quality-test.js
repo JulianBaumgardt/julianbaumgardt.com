@@ -42,6 +42,9 @@ assert.equal(hooks.consistencyPercent([50, 100, 100, 100, 100]), 70);
 assert.equal(hooks.stabilityLabel(5, 0, 90), "Excellent");
 assert.equal(hooks.stabilityLabel(30, 0, 90), "Variable");
 assert.equal(hooks.stabilityLabel(5, 4, 90), "Unstable");
+assert.equal(hooks.measurementQuality({ lossPercent: 0, downloadSpread: 5, downloadDurationMs: 2500, downloadSamples: 10 }, false), "High");
+assert.equal(hooks.measurementQuality({ lossPercent: 0, downloadSpread: 5, downloadDurationMs: 500, downloadSamples: 10 }, false), "Low");
+assert.equal(hooks.measurementQuality({ lossPercent: 0, downloadSpread: 5, downloadDurationMs: 2500, downloadSamples: 10 }, true), "Low");
 
 const rounds = [
   { idleMs: 20, jitterMs: 3, loadedMs: 60, downloadMbps: 100, consistency: 90, dnsMs: 5, attempts: 10, failures: 0 },
@@ -62,6 +65,7 @@ assert.match(html, /Browser estimate:/);
 assert.match(html, /may be less precise than a dedicated speed-test protocol/);
 assert.match(html, /Estimated data use:/);
 assert.match(html, /Light uses about 32 MB across 2 latency rounds and 1 load round\./);
+assert.match(html, /Light · ~32 MB/);
 assert.match(html, /Standard uses about 128 MB across 3 latency rounds and 2 load rounds\./);
 assert.match(html, /Thorough uses about 288 MB across 5 latency rounds and 3 load rounds\./);
 assert.match(html, /About This Project/);
@@ -81,21 +85,24 @@ assert.match(typography, /--site-font-mono:/);
 assert.match(worker, /MAX_DOWNLOAD_BYTES = 32 \* 1024 \* 1024/);
 assert.match(worker, /Cache-Control/);
 assert.match(worker, /Content-Encoding/);
+assert.match(worker, /Cross-Origin-Resource-Policy/);
 assert.match(worker, /crypto\.randomUUID/);
 assert.match(worker, /REQUEST_LIMITER/);
 assert.match(worker, /DOWNLOAD_LIMITER/);
 assert.match(wrangler, /julianbaumgardt\.com\/network-test\/\*/);
 assert.match(wrangler, /"ratelimits"/);
+assert.match(wrangler, /"observability"/);
 assert.equal(hooks.profiles.standard.downloadRounds, 2);
 assert.equal(hooks.profiles.standard.estimatedMb, 128);
 assert.match(source, /Round \$\{index \+ 1\} Of \$\{total\} · Idle Latency/);
 assert.match(source, /Round \$\{index \+ 1\} Of \$\{total\} · Download Under Load/);
 assert.match(source, /Rate Limit Reached · Please Wait One Minute/);
-assert.match(source, /Test Service Unavailable · Check The Cloudflare Worker Route/);
+assert.match(source, /Test Service Unavailable · Try Again Shortly/);
 assert.match(source, /detailsContent\.innerHTML = `<table class="round-table">/, "round details should use the fixed table template");
 
 async function testWorker() {
   const workerContext = {
+    console: { error() {} },
     URL,
     Response,
     Request,
@@ -153,10 +160,21 @@ async function testWorker() {
   });
   assert.equal(limited.status, 429);
   assert.equal(limited.headers.get("retry-after"), "60");
+
+  const methodNotAllowed = await handler(new Request("https://julianbaumgardt.com/network-test/ping", { method: "POST" }), allowEnv);
+  assert.equal(methodNotAllowed.status, 405);
+  assert.equal(methodNotAllowed.headers.get("allow"), "GET, OPTIONS");
+
+  const unavailable = await handler(new Request("https://julianbaumgardt.com/network-test/ping"), {
+    REQUEST_LIMITER: { limit: async () => { throw new Error("binding unavailable"); } },
+    DOWNLOAD_LIMITER: { limit: async () => ({ success: true }) }
+  });
+  assert.equal(unavailable.status, 503);
+  assert.equal(unavailable.headers.get("retry-after"), "5");
 }
 
 async function testStopDuringDownload() {
-  const ids = ["status", "progress-bar", "profile-select", "run-test", "stop-test", "data-note", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "details-content"];
+  const ids = ["status", "progress", "progress-bar", "profile-select", "run-test", "stop-test", "data-note", "latency-score", "download-score", "loaded-score", "stability-score", "latency-spread", "download-spread", "loaded-spread", "stability-note", "jitter-metric", "loss-metric", "consistency-metric", "penalty-metric", "dns-metric", "rounds-metric", "data-metric", "quality-metric", "details-content"];
   const fakeElements = Object.fromEntries(ids.map((id) => [id, {
     textContent: "",
     innerHTML: "",
@@ -164,7 +182,8 @@ async function testStopDuringDownload() {
     value: id === "profile-select" ? "light" : "",
     style: {},
     listeners: {},
-    addEventListener(type, listener) { this.listeners[type] = listener; }
+    addEventListener(type, listener) { this.listeners[type] = listener; },
+    setAttribute(name, value) { this[name] = value; }
   }]));
 
   let readyHandler = null;

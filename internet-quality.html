@@ -152,9 +152,9 @@
         <div class="control-row">
           <label for="profile-select">Test depth</label>
           <select id="profile-select">
-            <option value="light">Light</option>
-            <option value="standard" selected>Standard</option>
-            <option value="thorough">Thorough</option>
+            <option value="light">Light · ~32 MB</option>
+            <option value="standard" selected>Standard · ~128 MB</option>
+            <option value="thorough">Thorough · ~288 MB</option>
           </select>
         </div>
         <div class="actions">
@@ -164,7 +164,7 @@
       </div>
     </section>
 
-    <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+    <div class="progress" id="progress" role="progressbar" aria-label="Test progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-bar"></span></div>
 
     <section class="score-grid" aria-label="Primary connection results">
       <div class="score"><span>Idle Latency</span><strong id="latency-score">--</strong><small id="latency-spread">Not tested</small></div>
@@ -180,6 +180,8 @@
       <div class="metric"><span>Responsiveness Penalty</span><strong id="penalty-metric">--</strong></div>
       <div class="metric"><span>DNS Resolver Timing</span><strong id="dns-metric">--</strong></div>
       <div class="metric"><span>Measured Rounds</span><strong id="rounds-metric">--</strong></div>
+      <div class="metric"><span>Data Transferred</span><strong id="data-metric">--</strong></div>
+      <div class="metric"><span>Measurement Confidence</span><strong id="quality-metric">--</strong></div>
     </section>
 
     <details class="run-details" id="run-details">
@@ -188,7 +190,7 @@
     </details>
 
     <aside class="notice" aria-label="Test methodology and estimated data use">
-      <p><strong>Browser estimate:</strong> this is not a native network measurement and may be less precise than a dedicated speed-test protocol. It uses timed HTTPS requests to the nearest Cloudflare edge, not ICMP ping. Loss means failed or timed-out web probes, and DNS timing is measured by the server resolver. Results can be affected by browser scheduling, VPNs, Wi-Fi, caching, other traffic, and background tabs.</p>
+      <p><strong>Browser estimate:</strong> this is not a native network measurement and may be less precise than a dedicated speed-test protocol. It uses timed HTTPS requests to the nearest Cloudflare edge, not ICMP ping. Loss means failed or timed-out web probes, and DNS timing is measured by the server resolver. Results can be affected by browser scheduling, VPNs, Wi-Fi, caching, other traffic, and background tabs. Results stay in this tab; the tester sets no cookies and saves no history.</p>
       <div class="notice-data">
         <strong>Estimated data use:</strong>
         <ul>
@@ -208,6 +210,6 @@
       </div>
     </section>
   </main>
-  <script src="internet-quality.js?v=3" defer></script>
+  <script src="internet-quality.js?v=4" defer></script>
 </body>
 </html>

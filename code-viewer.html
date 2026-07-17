@@ -207,6 +207,11 @@
         .line-number {
           padding: 0 12px;
         }
+
+        h1 {
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
       }
     </style>
   </head>
@@ -214,7 +219,7 @@
     <main>
       <nav aria-label="Page">
         <a href="index.html#projects">Back To Projects</a>
-        <a id="raw-link" href="#">Open Raw Code</a>
+        <a id="raw-link" hidden>Open Raw Code</a>
       </nav>
 
       <h1 id="title">source</h1>
@@ -576,6 +581,7 @@
         meta.textContent = allowedFiles.get(file);
         fileLabel.textContent = displayName;
         rawLink.href = file;
+        rawLink.hidden = false;
 
         try {
           const response = await fetch(file, { cache: "no-store" });

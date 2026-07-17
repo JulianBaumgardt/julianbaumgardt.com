@@ -7,7 +7,8 @@ const headers = {
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
   "CDN-Cache-Control": "no-store",
-  "X-Content-Type-Options": "nosniff"
+  "X-Content-Type-Options": "nosniff",
+  "Cross-Origin-Resource-Policy": "same-site"
 };
 
 function responseHeaders(request, extra) {
@@ -61,6 +62,7 @@ async function handleDns(request) {
   const url = `https://cloudflare-dns.com/dns-query?name=${nonce}.invalid&type=A`;
   const started = performance.now();
   const upstream = await fetch(url, { headers: { Accept: "application/dns-json" }, cf: { cacheTtl: 0, cacheEverything: false } });
+  if (!upstream.ok) throw new Error(`Resolver returned ${upstream.status}.`);
   await upstream.arrayBuffer();
   const resolverMs = performance.now() - started;
   return Response.json({ resolverMs, scope: "Cloudflare edge resolver" }, { headers: responseHeaders(request, { "Content-Type": "application/json; charset=utf-8" }) });
@@ -68,34 +70,42 @@ async function handleDns(request) {
 
 export default {
   async fetch(request, env) {
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: responseHeaders(request) });
-    if (request.method !== "GET") return new Response("Method not allowed", { status: 405, headers: responseHeaders(request) });
-    if (!isAllowedRequest(request)) return new Response("Forbidden", { status: 403, headers: responseHeaders(request) });
+    try {
+      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: responseHeaders(request) });
+      if (request.method !== "GET") return new Response("Method not allowed", { status: 405, headers: responseHeaders(request, { Allow: "GET, OPTIONS" }) });
+      if (!isAllowedRequest(request)) return new Response("Forbidden", { status: 403, headers: responseHeaders(request) });
 
-    const requestLimit = await env.REQUEST_LIMITER.limit({ key: rateLimitKey(request, "request") });
-    if (!requestLimit.success) return rateLimitedResponse(request);
+      const requestLimit = await env.REQUEST_LIMITER.limit({ key: rateLimitKey(request, "request") });
+      if (!requestLimit.success) return rateLimitedResponse(request);
 
-    const url = new URL(request.url);
-    if (url.pathname === "/network-test/ping") {
-      return new Response("ok", { headers: responseHeaders(request, { "Content-Type": "text/plain; charset=utf-8", "Server-Timing": "edge;dur=0" }) });
+      const url = new URL(request.url);
+      if (url.pathname === "/network-test/ping") {
+        return new Response("ok", { headers: responseHeaders(request, { "Content-Type": "text/plain; charset=utf-8", "Server-Timing": "edge;dur=0" }) });
+      }
+
+      if (url.pathname === "/network-test/download") {
+        const downloadLimit = await env.DOWNLOAD_LIMITER.limit({ key: rateLimitKey(request, "download") });
+        if (!downloadLimit.success) return rateLimitedResponse(request);
+        const rawBytes = url.searchParams.get("bytes");
+        const requested = rawBytes === null ? DEFAULT_DOWNLOAD_BYTES : Number.parseInt(rawBytes, 10);
+        const totalBytes = Math.max(64 * 1024, Math.min(MAX_DOWNLOAD_BYTES, Number.isFinite(requested) ? requested : DEFAULT_DOWNLOAD_BYTES));
+        return new Response(createDownloadStream(totalBytes), {
+          headers: responseHeaders(request, { "Content-Type": "application/octet-stream", "Content-Length": String(totalBytes), "Content-Encoding": "identity" })
+        });
+      }
+
+      if (url.pathname === "/network-test/dns") {
+        try { return await handleDns(request); }
+        catch (error) {
+          console.error(JSON.stringify({ message: "DNS timing failed", error: error instanceof Error ? error.message : String(error) }));
+          return new Response("DNS timing unavailable", { status: 503, headers: responseHeaders(request) });
+        }
+      }
+
+      return new Response("Not found", { status: 404, headers: responseHeaders(request) });
+    } catch (error) {
+      console.error(JSON.stringify({ message: "Network test request failed", error: error instanceof Error ? error.message : String(error) }));
+      return new Response("Test service unavailable", { status: 503, headers: responseHeaders(request, { "Retry-After": "5" }) });
     }
-
-    if (url.pathname === "/network-test/download") {
-      const downloadLimit = await env.DOWNLOAD_LIMITER.limit({ key: rateLimitKey(request, "download") });
-      if (!downloadLimit.success) return rateLimitedResponse(request);
-      const rawBytes = url.searchParams.get("bytes");
-      const requested = rawBytes === null ? DEFAULT_DOWNLOAD_BYTES : Number.parseInt(rawBytes, 10);
-      const totalBytes = Math.max(64 * 1024, Math.min(MAX_DOWNLOAD_BYTES, Number.isFinite(requested) ? requested : DEFAULT_DOWNLOAD_BYTES));
-      return new Response(createDownloadStream(totalBytes), {
-        headers: responseHeaders(request, { "Content-Type": "application/octet-stream", "Content-Length": String(totalBytes), "Content-Encoding": "identity" })
-      });
-    }
-
-    if (url.pathname === "/network-test/dns") {
-      try { return await handleDns(request); }
-      catch (_) { return new Response("DNS timing unavailable", { status: 503, headers: responseHeaders(request) }); }
-    }
-
-    return new Response("Not found", { status: 404, headers: responseHeaders(request) });
   }
 };

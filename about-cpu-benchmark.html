@@ -219,6 +219,7 @@
               <li><strong>Scaling.</strong> Multi-core score divided by single-core score. This answers: how much faster did the workload get when more workers were added?</li>
               <li><strong>Fixed Speedup.</strong> How much faster the same total amount of work finishes when split across multiple workers instead of running on one worker.</li>
               <li><strong>Spread labels.</strong> The percentage beside each score is the maximum observed deviation from its median. Scaling and Fixed Speedup are calculated for each measured cycle first, so their spread comes from real ratio samples instead of an assumed variance formula.</li>
+              <li><strong>Run confidence and drift.</strong> The result now grades confidence from observed spread, foreground/background state, and the change between the first and last single-core rounds. Positive drift means the later round was slower and can point to heat, power, or competing work.</li>
         </ul>
       </section>
 

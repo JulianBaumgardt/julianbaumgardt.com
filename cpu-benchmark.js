@@ -89,6 +89,12 @@
     return `±${formatNumber(value, 1)}%`;
   }
 
+  function formatSignedPercent(value) {
+    if (!Number.isFinite(value)) return "--";
+    const prefix = value > 0 ? "+" : "";
+    return `${prefix}${formatNumber(value, 1)}%`;
+  }
+
   function getReportedHardwareConcurrency() {
     return navigator.hardwareConcurrency || 1;
   }
@@ -116,6 +122,7 @@
   function setProgress(value) {
     const clamped = Math.max(0, Math.min(1, value));
     elements.progressBar.style.transform = `scaleX(${clamped})`;
+    elements.progress.setAttribute("aria-valuenow", String(Math.round(clamped * 100)));
   }
 
   function setMetric(id, value) {
@@ -170,6 +177,21 @@
     };
   }
 
+  function trendPercent(values) {
+    const clean = values.filter((value) => Number.isFinite(value) && value > 0);
+    const center = median(clean);
+    if (clean.length < 2 || !Number.isFinite(center) || center <= 0) return 0;
+    return ((clean[clean.length - 1] - clean[0]) / center) * 100;
+  }
+
+  function getRunConfidence(scoreSpread, singleDrift, backgrounded) {
+    const spreads = Object.values(scoreSpread).filter(Number.isFinite);
+    const worstSpread = spreads.length ? Math.max(...spreads) : 0;
+    if (backgrounded || worstSpread >= 15 || Math.abs(singleDrift) >= 10) return "Low";
+    if (worstSpread >= 7 || Math.abs(singleDrift) >= 5) return "Fair";
+    return "High";
+  }
+
   function getScoreDisplay(singleScore, multiScore, scaling, fixedSpeedup, scoreSpread) {
     return {
       singleScore: formatScore(singleScore),
@@ -208,6 +230,8 @@
     setMetric("visibility", "--");
     setMetric("verification", "--");
     setMetric("workerSource", "--");
+    setMetric("confidence", "--");
+    setMetric("singleDrift", "--");
     renderDetailsEmpty();
     setProgress(0);
   }
@@ -302,6 +326,8 @@
             ["Scaling", `${formatNumber(summary.scaling, 2)}x`],
             ["Efficiency", `${formatNumber(summary.efficiency * 100, 1)}%`],
             ["Fixed Speedup", `${formatNumber(summary.fixedSpeedup, 2)}x`],
+            ["Run Confidence", summary.confidence],
+            ["Single-Core Drift", formatSignedPercent(summary.singleDrift)],
             ["Single Spread", formatSpread(summary.scoreSpread.single)],
             ["Multi Spread", formatSpread(summary.scoreSpread.multi)],
             ["Scaling Spread", formatSpread(summary.scoreSpread.scaling)],
@@ -756,6 +782,8 @@
       );
       const scoreDisplay = getScoreDisplay(singleScore, multiScore, scaling, fixedSpeedup, scoreSpread);
       const checksum = verification.checksum;
+      const singleDrift = trendPercent(single.runs.map((run) => run.workerMs));
+      const confidence = getRunConfidence(scoreSpread, singleDrift, state.backgroundedDuringRun);
 
       renderScoreDisplay(scoreDisplay);
       setMetric("singleTime", formatMs(single.workerMs));
@@ -764,6 +792,8 @@
       setMetric("startMode", multi.startMode);
       setMetric("visibility", state.backgroundedDuringRun ? "Backgrounded During Run" : "Foreground");
       setMetric("workerSource", state.workerSource);
+      setMetric("confidence", confidence);
+      setMetric("singleDrift", formatSignedPercent(singleDrift));
       renderRunDetails({
         workerCount,
         workload,
@@ -780,10 +810,14 @@
         efficiency,
         fixedSpeedup,
         scoreSpread,
+        confidence,
+        singleDrift,
         checksum
       });
       setProgress(1);
-      setStatus(state.backgroundedDuringRun ? "Complete - Backgrounded, Rerun Recommended" : "Complete");
+      if (state.backgroundedDuringRun) setStatus("Complete · Backgrounded, Rerun Recommended");
+      else if (confidence === "Low") setStatus("Complete · Low Confidence, Rerun Recommended");
+      else setStatus(`Complete · ${confidence} Confidence`);
     } catch (error) {
       if (state.cancelled) {
         setStatus("Cancelled");
@@ -806,6 +840,7 @@
 
   function init() {
     elements.status = $("status");
+    elements.progress = $("progress");
     elements.progressBar = $("progress-bar");
     elements.runButton = $("run-benchmark");
     elements.stopButton = $("stop-benchmark");
@@ -830,7 +865,9 @@
       startMode: $("start-mode"),
       visibility: $("visibility-state"),
       verification: $("verification-checksum"),
-      workerSource: $("worker-source")
+      workerSource: $("worker-source"),
+      confidence: $("run-confidence"),
+      singleDrift: $("single-core-drift")
     };
 
     elements.workerInput.value = String(getHardwareConcurrency());
@@ -851,10 +888,12 @@
       getRotatingPhaseOrder,
       getScoreDisplay,
       getScoreSpread,
+      getRunConfidence,
       getWorkerSourceLabel: () => state.workerSource,
       getWorkerUrl,
       maxDeviationPercent,
       pairedRatios,
+      trendPercent,
       renderScoreDisplay,
       resetWorkerUrl: () => {
         state.workerBlobUrl = null;

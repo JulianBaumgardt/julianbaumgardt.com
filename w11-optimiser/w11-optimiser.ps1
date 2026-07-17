@@ -17,7 +17,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptVersion = "1.1.1"
+$ScriptVersion = "1.2.0"
+$StateSchemaVersion = 1
+$script:NetworkStateBackupReady = $false
+$script:StepResults = [ordered]@{}
 
 $PowerGuids = @{
     UltimatePerformance = "e9a42b02-d5df-448d-aa00-03f14749eb61"
@@ -41,6 +44,22 @@ function Test-IsAdmin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = [Security.Principal.WindowsPrincipal] $identity
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Assert-Windows11Client {
+    try {
+        $operatingSystem = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+        $buildNumber = [int] $operatingSystem.BuildNumber
+        if ($operatingSystem.ProductType -ne 1 -or $buildNumber -lt 22000) {
+            throw "SafeOptimize supports Windows 11 client editions only. Detected: $($operatingSystem.Caption), build $buildNumber."
+        }
+    }
+    catch {
+        if ($_.Exception.Message -like "SafeOptimize supports Windows 11*") {
+            throw
+        }
+        throw "Could not verify that this is a supported Windows 11 client: $($_.Exception.Message)"
+    }
 }
 
 function Get-DesktopPath {
@@ -176,6 +195,8 @@ function Initialize-RunFolder {
     $script:LogWarnings = @()
     $script:LogErrors = @()
     $script:LogStepCount = 0
+    $script:NetworkStateBackupReady = $false
+    $script:StepResults = [ordered]@{}
 }
 
 function Write-ConsoleStatus {
@@ -504,9 +525,11 @@ function Invoke-Step {
     Write-Log "START: $Name"
     try {
         & $Action
+        $script:StepResults[$Name] = "Completed"
         Write-Log "DONE : $Name"
     }
     catch {
+        $script:StepResults[$Name] = "Failed: $($_.Exception.Message)"
         if ($Required) {
             Write-Log "ERROR: $Name failed: $($_.Exception.Message)"
             throw
@@ -543,6 +566,16 @@ function Invoke-PowerCfgChecked {
     $output = & powercfg @PowerCfgArguments 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         throw "powercfg $($PowerCfgArguments -join ' ') failed: $($output.Trim())"
+    }
+    return $output
+}
+
+function Invoke-FsutilChecked {
+    param([Parameter(Mandatory = $true)][string[]] $FsutilArguments)
+
+    $output = & fsutil @FsutilArguments 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+        throw "fsutil $($FsutilArguments -join ' ') failed: $($output.Trim())"
     }
     return $output
 }
@@ -1104,6 +1137,10 @@ function Restore-NetworkAdapterPowerState {
         }
 
         if (-not [string]::IsNullOrWhiteSpace($adapter.ClassRegistryPath)) {
+            if ($adapter.ClassRegistryPath -notlike "$NetworkAdapterClassKeyRoot\*") {
+                Write-Log "WARN : Refused unexpected network registry path for $($adapter.Name): $($adapter.ClassRegistryPath)"
+                continue
+            }
             try {
                 if ($adapter.PnPCapabilitiesExists -eq $true) {
                     New-ItemProperty -LiteralPath $adapter.ClassRegistryPath -Name "PnPCapabilities" -Value ([int] $adapter.PnPCapabilities) -PropertyType DWord -Force | Out-Null
@@ -1123,13 +1160,16 @@ function Restore-NetworkAdapterPowerState {
 
 function Save-State {
     $activeScheme = Get-ActivePowerSchemeGuid
-    $trimText = fsutil behavior query DisableDeleteNotify | Out-String
+    $trimText = Invoke-FsutilChecked -FsutilArguments @("behavior", "query", "DisableDeleteNotify")
     $ntfsTrimValue = $null
     if ($trimText -match "NTFS DisableDeleteNotify =\s*(\d+)") {
         $ntfsTrimValue = [int] $Matches[1]
     }
 
     [ordered]@{
+        RunKind = "W11Optimiser"
+        StateSchemaVersion = $StateSchemaVersion
+        ScriptVersion = $ScriptVersion
         Timestamp = Get-Date -Format "o"
         PreviousActivePowerSchemeGuid = $activeScheme
         OptimisedPowerSchemeGuid = $null
@@ -1141,6 +1181,7 @@ function Save-State {
 
     try {
         Get-NetworkAdapterPowerState | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $script:BackupPath "Network Power Management.json") -Encoding UTF8
+        $script:NetworkStateBackupReady = $true
         Write-Log "Saved network adapter power management state."
     }
     catch {
@@ -1306,7 +1347,7 @@ function Set-ConservativeVisualPerformance {
 }
 
 function Ensure-TrimEnabled {
-    fsutil behavior set DisableDeleteNotify 0 | Out-Null
+    Invoke-FsutilChecked -FsutilArguments @("behavior", "set", "DisableDeleteNotify", "0") | Out-Null
     Write-Log "TRIM enabled for supported filesystems."
 }
 
@@ -1389,6 +1430,10 @@ function Clear-SafeTempAndCaches {
 }
 
 function Optimize-NetworkPowerSaving {
+    if (-not $script:NetworkStateBackupReady) {
+        throw "Network adapter changes were skipped because the original adapter state was not backed up."
+    }
+
     try {
         $upAdapters = Get-NetAdapter -Physical -ErrorAction Stop | Where-Object { $_.Status -eq "Up" }
         foreach ($adapter in $upAdapters) {
@@ -1401,7 +1446,7 @@ function Optimize-NetworkPowerSaving {
         }
     }
     catch {
-        Write-Log "WARN : Network adapter optimisation skipped: $($_.Exception.Message)"
+        throw "Network adapter optimisation skipped: $($_.Exception.Message)"
     }
 }
 
@@ -1409,24 +1454,45 @@ function Write-ManualReviewFiles {
     Write-Log "Manual review notes are included in the HTML report."
 }
 
-function Write-SafeOptimisationRunReport {
+function Get-StepReportLine {
     param(
-        [Parameter(Mandatory = $true)][string] $CleanupSummary
+        [Parameter(Mandatory = $true)][string] $StepName,
+        [Parameter(Mandatory = $true)][string] $Label,
+        [Parameter(Mandatory = $true)][string] $SuccessText
     )
 
+    $result = $script:StepResults[$StepName]
+    if ($result -eq "Completed") {
+        return "[OK] ${Label}: $SuccessText"
+    }
+    if ([string]::IsNullOrWhiteSpace($result)) {
+        return "[SKIP] ${Label}: STEP WAS NOT RUN."
+    }
+    return "[WARN] ${Label}: $result"
+}
+
+function Write-SafeOptimisationRunReport {
     $reportPath = Join-Path $script:BackupPath "Run Report.html"
     $restorePointSummary = if ($SkipRestorePoint) {
         "[SKIP] RESTORE POINT: SKIPPED BECAUSE -SKIPRESTOREPOINT WAS PASSED."
     }
     else {
-        "[OK] RESTORE POINT: CREATED OR ACCEPTED A RECENT RESTORE POINT."
+        Get-StepReportLine -StepName "Create system restore point" -Label "RESTORE POINT" -SuccessText "CREATED OR ACCEPTED A RECENT RESTORE POINT."
     }
     $cleanupLine = if ($SkipTempCleanup) {
         "[SKIP] TEMP/CACHE CLEANUP: SKIPPED BY RECOMMENDED MODE."
     }
     else {
-        "[OK] TEMP/CACHE CLEANUP: CLEANED OLD SAFE REBUILDABLE FILES."
+        Get-StepReportLine -StepName "Clean safe temporary and rebuildable cache files" -Label "TEMP/CACHE CLEANUP" -SuccessText "CLEANED OLD SAFE REBUILDABLE FILES."
     }
+    $stateBackupLine = Get-StepReportLine -StepName "Save current state" -Label "STATE BACKUP" -SuccessText "SAVED POWER, TRIM, AND AVAILABLE NETWORK STATE."
+    $registryBackupLine = Get-StepReportLine -StepName "Export registry backups" -Label "REGISTRY BACKUP" -SuccessText "EXPORTED EXISTING REGISTRY KEYS OR RECORDED MISSING KEYS."
+    $powerLine = Get-StepReportLine -StepName "Enable Ultimate or High Performance power plan" -Label "POWER PLAN" -SuccessText "CREATED AND CONFIGURED A DEDICATED W11 OPTIMISER POWER PLAN."
+    $gameDvrLine = Get-StepReportLine -StepName "Disable Game DVR and background capture" -Label "GAME DVR" -SuccessText "DISABLED BACKGROUND CAPTURE AND KEPT GAME MODE ENABLED."
+    $visualsLine = Get-StepReportLine -StepName "Set conservative visual performance profile" -Label "VISUALS" -SuccessText "APPLIED A CONSERVATIVE RESPONSIVENESS PROFILE."
+    $trimLine = Get-StepReportLine -StepName "Ensure SSD TRIM is enabled" -Label "TRIM" -SuccessText "ENSURED TRIM IS ENABLED FOR SUPPORTED FILESYSTEMS."
+    $retrimLine = Get-StepReportLine -StepName "Run SSD ReTrim maintenance" -Label "RETRIM" -SuccessText "REQUESTED RETRIM ON SUPPORTED FIXED NTFS/REFS VOLUMES."
+    $networkLine = Get-StepReportLine -StepName "Optimize network adapter power saving for latency" -Label "NETWORK" -SuccessText "DISABLED ACTIVE PHYSICAL ADAPTER SLEEP PERMISSION WHERE SUPPORTED."
     $warningText = if ($script:LogWarnings.Count -gt 0) {
         ($script:LogWarnings | ForEach-Object { "- $_" }) -join "`r`n"
     }
@@ -1502,18 +1568,14 @@ $networkPowerStatus
 WHAT CHANGED
 ------------
 $restorePointSummary
-[OK] BACKUPS: SAVED STATE AND REGISTRY BACKUPS IN THIS FOLDER.
-[OK] POWER PLAN: CREATED A DEDICATED W11 OPTIMISER POWER PLAN FOR THIS RUN.
-[OK] CPU POWER: SET AC MINIMUM TO 10 PERCENT AND MAXIMUM TO 100 PERCENT.
-[OK] PCI EXPRESS: DISABLED LINK STATE POWER MANAGEMENT ON AC.
-[OK] USB POWER: DISABLED USB SELECTIVE SUSPEND ON AC.
-[OK] WI-FI POWER: SET WIRELESS ADAPTER POWER SAVING TO MAXIMUM PERFORMANCE ON AC.
-[OK] GAME DVR: DISABLED BACKGROUND CAPTURE REGISTRY SETTINGS.
-[OK] GAME MODE: KEPT WINDOWS GAME MODE ENABLED.
-[OK] VISUALS: APPLIED A CONSERVATIVE RESPONSIVENESS PROFILE.
-[OK] STORAGE: ENSURED TRIM IS ENABLED.
-[OK] STORAGE: RAN SSD RETRIM ON SUPPORTED FIXED NTFS/REFS VOLUMES.
-[OK] NETWORK: DISABLED ACTIVE PHYSICAL ADAPTER SLEEP PERMISSION WHERE SUPPORTED.
+$stateBackupLine
+$registryBackupLine
+$powerLine
+$gameDvrLine
+$visualsLine
+$trimLine
+$retrimLine
+$networkLine
 $cleanupLine
 
 WHAT WAS NOT CHANGED
@@ -1568,6 +1630,8 @@ NEXT STEPS
 }
 
 function Invoke-SafeOptimize {
+    Assert-Windows11Client
+
     $restorePointLine = if ($SkipRestorePoint) {
         "- Skip the restore point because -SkipRestorePoint was passed"
     }
@@ -1616,17 +1680,15 @@ function Invoke-SafeOptimize {
         Invoke-Step -Name "Run SSD ReTrim maintenance" -Action { Invoke-StorageReTrim }
         Invoke-Step -Name "Optimize network adapter power saving for latency" -Action { Optimize-NetworkPowerSaving }
 
-        $cleanupSummary = "Skipped temp/cache cleanup because -SkipTempCleanup was used."
         if (-not $SkipTempCleanup) {
             Invoke-Step -Name "Clean safe temporary and rebuildable cache files" -Action { Clear-SafeTempAndCaches }
-            $cleanupSummary = "Cleaned only old temp/cache files from safe, rebuildable locations."
         }
         else {
             Write-Log "Temp/cache cleanup skipped by parameter."
         }
 
         Invoke-Step -Name "Prepare manual review section" -Action { Write-ManualReviewFiles }
-        Invoke-Step -Name "Create browser report" -Action { Write-SafeOptimisationRunReport -CleanupSummary $cleanupSummary }
+        Invoke-Step -Name "Create browser report" -Action { Write-SafeOptimisationRunReport }
 
         Write-Log "Safe W11 optimisation completed."
         Write-Host ""
@@ -1766,6 +1828,14 @@ function Invoke-UndoLatest {
         $script:BackupPath = (Resolve-Path $BackupPath).Path
     }
 
+    $hasState = Test-Path (Join-Path $script:BackupPath "State.json")
+    $hasRegistryBackup = $null -ne (Get-ChildItem -LiteralPath $script:BackupPath -File -ErrorAction Stop |
+        Where-Object { $_.Name -like "*.reg" -or $_.Name -like "*.missing.json" } |
+        Select-Object -First 1)
+    if (-not $hasState -and -not $hasRegistryBackup) {
+        throw "The selected folder does not contain W11 Optimiser state or registry backup files. Nothing was changed."
+    }
+
     $script:LogPath = if ($VerboseLog) { Join-Path $script:BackupPath "Undo Log.txt" } else { $null }
     Write-LogHeader -Title "Undo Log"
     Write-Log "Undo started."
@@ -1776,10 +1846,16 @@ function Invoke-UndoLatest {
     if (Test-Path $statePath) {
         try {
             $state = Get-Content -Path $statePath -Raw | ConvertFrom-Json
+            if ($state.RunKind -and $state.RunKind -ne "W11Optimiser") {
+                throw "State.json belongs to an unexpected tool or run type."
+            }
+            if ($state.StateSchemaVersion -and [int] $state.StateSchemaVersion -gt $StateSchemaVersion) {
+                throw "State.json uses a newer schema. Update W11 Optimiser before undoing this run."
+            }
             Write-Log "Loaded State.json"
         }
         catch {
-            Write-Log "WARN : Could not load State.json: $($_.Exception.Message)"
+            throw "Could not safely load State.json. Nothing was changed: $($_.Exception.Message)"
         }
     }
 
@@ -1810,12 +1886,21 @@ function Invoke-UndoLatest {
     }
 
     if ($null -ne $state -and -not [string]::IsNullOrWhiteSpace($state.OptimisedPowerSchemeGuid)) {
-        Remove-OptimisedPowerScheme -PowerSchemeGuid $state.OptimisedPowerSchemeGuid
+        if ($state.OptimisedPowerSchemeName -like "W11 Optimiser *") {
+            Remove-OptimisedPowerScheme -PowerSchemeGuid $state.OptimisedPowerSchemeGuid
+        }
+        else {
+            Write-Log "WARN : Refused to remove a power plan without the expected W11 Optimiser name."
+        }
     }
 
     if ($null -ne $state -and $null -ne $state.NtfsDisableDeleteNotify) {
         try {
-            fsutil behavior set DisableDeleteNotify ([int] $state.NtfsDisableDeleteNotify) | Out-Null
+            $trimValue = [int] $state.NtfsDisableDeleteNotify
+            if ($trimValue -notin @(0, 1)) {
+                throw "Unexpected saved TRIM value: $trimValue"
+            }
+            Invoke-FsutilChecked -FsutilArguments @("behavior", "set", "DisableDeleteNotify", [string] $trimValue) | Out-Null
             Write-Log "Restored NTFS DisableDeleteNotify to $($state.NtfsDisableDeleteNotify)"
         }
         catch {

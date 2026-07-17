@@ -5,6 +5,7 @@
 html {
   font-family: var(--site-font-mono);
   font-size: 16px;
+  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -25,4 +26,24 @@ input,
 select,
 textarea {
   letter-spacing: inherit;
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
