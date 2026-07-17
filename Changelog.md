@@ -225,3 +225,11 @@
 - Prevented expandable navigation text from appearing in search-result descriptions.
 - Guided Google toward displaying a concise summary of the site’s software projects.
 - Added regression checks for the new search metadata.
+
+
+## Update 4.8 Google Search Improvements
+
+- Added a clearer homepage search title and description.
+- Prevented expandable navigation text from being used in Google result descriptions.
+- Added Google Search Console site verification.
+- Added regression checks to protect the search metadata and verification file.
